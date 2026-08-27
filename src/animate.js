@@ -17,6 +17,8 @@ export const ANIMATE_CSS = `
 }
 `.trim();
 
+import { nowMs } from './clock.js';
+
 // Rank-major, order-minor. Guarantees termination on cyclic graphs and reads
 // left-to-right on screen, which is what a booth audience follows.
 export function walkOrder(model) {

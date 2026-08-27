@@ -6,104 +6,124 @@
 <meta name="description" content="Turn mermaid flowcharts into beautiful, animated, self-contained HTML flow diagrams.">
 <title>FlowMaker</title>
 <style>
+  /* The tool's own chrome has a fixed, neutral theme. The diagram's style and
+     palette are scoped to the diagram itself (.fm-root), so switching them
+     restyles the content and never the interface around it. */
+  #app{
+    --ui-bg:#ffffff;
+    --ui-panel:#f6f7f9;
+    --ui-panel-2:#eef0f4;
+    --ui-border:#dfe3e9;
+    --ui-ink:#181b21;
+    --ui-ink-dim:#5d6472;
+    --ui-accent:#2563eb;
+    --ui-accent-ink:#ffffff;
+    --ui-warn:#fdf0ef;
+    --ui-warn-ink:#8c2f22;
+  }
   *,*::before,*::after{box-sizing:border-box}
   html,body{height:100%;margin:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#fff;color:#111}
-  #app,#app .fm-root{height:100dvh;display:flex;flex-direction:column;background:var(--ground,#fff);color:var(--ink,#111)}
-  .fm-topbar{display:flex;align-items:baseline;gap:1rem;padding:.7rem 1.1rem;border-bottom:1px solid var(--border,#ddd);flex-wrap:wrap;flex:0 0 auto}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#fff;color:#181b21}
+  #app,.fm-app{height:100dvh;display:flex;flex-direction:column;min-width:0;background:var(--ui-bg);color:var(--ui-ink)}
+
+  .fm-topbar{display:flex;align-items:baseline;gap:1rem;padding:.7rem 1.1rem;border-bottom:1px solid var(--ui-border);flex-wrap:wrap;flex:0 0 auto}
   .fm-brand{font-weight:800;letter-spacing:-.02em}
   .fm-doc-title{font-weight:600}
-  .fm-doc-subtitle{color:var(--ink-dim,#666);font-size:.9rem}
+  .fm-doc-subtitle{color:var(--ui-ink-dim);font-size:.9rem}
   .fm-topbar-actions{margin-left:auto;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
-  .fm-body{flex:1 1 auto;display:grid;grid-template-columns:250px 1fr;min-height:0}
-  .fm-rail{overflow:auto;padding:1rem;border-right:1px solid var(--border,#ddd);display:flex;flex-direction:column;gap:.35rem}
-  .fm-rail h2{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim,#666);margin:.9rem 0 .2rem}
+
+  /* Every track is minmax(0,...): an auto track sizes to max-content, and the
+     diagram is far wider than the screen, which blows the whole layout out and
+     leaves nothing to scroll. */
+  .fm-body{flex:1 1 auto;display:grid;grid-template-columns:250px minmax(0,1fr);min-width:0;min-height:0}
+  .fm-rail{overflow:auto;padding:1rem;border-right:1px solid var(--ui-border);display:flex;flex-direction:column;gap:.35rem;background:var(--ui-bg)}
+  .fm-rail h2{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ui-ink-dim);margin:.9rem 0 .2rem}
   .fm-rail label{display:flex;justify-content:space-between;align-items:center;gap:.5rem;font-size:.85rem;margin:.15rem 0}
-  .fm-rail select{font:inherit;font-size:.82rem;padding:.2em .4em;border-radius:6px;border:1px solid var(--border,#ddd);background:var(--surface,#fff);color:inherit}
-  .fm-main{min-width:0;display:grid;grid-template-rows:1.9fr 1fr;min-height:0}
-  .fm-panel{display:flex;flex-direction:column;min-height:0;border-top:1px solid var(--border,#ddd)}
-  .fm-panel-tabs{display:flex;gap:.4rem;align-items:center;padding:.45rem .7rem;border-bottom:1px solid var(--border,#ddd);flex-wrap:wrap;flex:0 0 auto}
+  .fm-rail select{font:inherit;font-size:.82rem;padding:.2em .4em;border-radius:6px;border:1px solid var(--ui-border);background:var(--ui-bg);color:inherit}
+
+  .fm-main{min-width:0;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1.9fr) minmax(0,1fr)}
+  .fm-panel{display:flex;flex-direction:column;min-width:0;min-height:0;border-top:1px solid var(--ui-border)}
+  .fm-panel-tabs{display:flex;gap:.4rem;align-items:center;padding:.45rem .7rem;border-bottom:1px solid var(--ui-border);flex-wrap:wrap;flex:0 0 auto;background:var(--ui-bg)}
   .fm-zoom{margin-left:auto;display:flex;gap:.3rem;align-items:center;font-size:.82rem}
-  /* Three stacked views in the diagram panel; only the selected one shows. */
-  .fm-views{position:relative;flex:1 1 auto;min-height:0;display:flex}
+
+  /* Three stacked views of the diagram; only the selected one is shown. */
+  .fm-views{position:relative;flex:1 1 auto;min-width:0;min-height:0;display:flex}
   .fm-view{display:none;flex:1 1 auto;min-width:0;min-height:0}
   .fm-views[data-view="flow"] .fm-view[data-view="flow"]{display:flex}
   .fm-views[data-view="mermaid"] .fm-view[data-view="mermaid"]{display:flex}
   .fm-views[data-view="document"] .fm-view[data-view="document"]{display:block}
-  .fm-mermaid-view{overflow:auto;background:#fff;padding:1rem;align-items:flex-start}
+  .fm-mermaid-view{min-width:0;min-height:0;overflow:auto;background:#fff;padding:1rem}
   .fm-mermaid-view svg{display:block;max-width:none;height:auto}
-  .fm-flip{position:relative;flex:1 1 auto;min-height:0;perspective:1800px}
-  .fm-face{position:absolute;inset:0;backface-visibility:hidden;transition:transform .55s cubic-bezier(.2,.8,.2,1);overflow:hidden;display:flex}
-  .fm-face-front{transform:rotateX(0)}
-  .fm-face-back{transform:rotateX(180deg)}
-  .fm-flip[data-face="back"] .fm-face-front{transform:rotateX(-180deg)}
-  .fm-flip[data-face="back"] .fm-face-back{transform:rotateX(0)}
-  .fm-canvas{flex:1 1 auto}
-  /* Three stacked panes; only the selected one is shown. */
-  .fm-panes{position:relative;flex:1 1 auto;min-height:0;display:flex}
-  .fm-pane{display:none;flex:1 1 auto;width:100%;margin:0;overflow:auto;padding:1rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;border:0;resize:none;background:var(--surface,#fff);color:var(--ink,#111);white-space:pre-wrap;word-break:break-word}
+
+  /* Three editor panes; only the selected one is shown. */
+  .fm-panes{position:relative;flex:1 1 auto;min-width:0;min-height:0;display:flex}
+  .fm-pane{display:none;flex:1 1 auto;width:100%;min-width:0;margin:0;overflow:auto;padding:1rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;border:0;resize:none;background:var(--ui-bg);color:var(--ui-ink);white-space:pre-wrap;word-break:break-word}
   .fm-panes[data-pane="markdown"] .fm-pane[data-pane="markdown"],
   .fm-panes[data-pane="mermaid"] .fm-pane[data-pane="mermaid"],
   .fm-panes[data-pane="html"] .fm-pane[data-pane="html"]{display:block}
-  .fm-pane:focus-visible{outline:2px solid var(--c1,#26f);outline-offset:-2px}
+  .fm-pane:focus-visible{outline:2px solid var(--ui-accent);outline-offset:-2px}
 
-  /* The reading view behind the diagram. */
-  .fm-doc{flex:1 1 auto;overflow:auto;padding:clamp(1.2rem,3vw,2.4rem);background:var(--surface,#fff);color:var(--ink,#111);font-family:inherit;line-height:1.6}
+  /* The reading view. Its chrome is neutral; only the embedded diagram carries
+     the chosen style. */
+  .fm-doc{overflow:auto;padding:clamp(1.2rem,3vw,2.4rem);background:var(--ui-bg);color:var(--ui-ink);line-height:1.6}
   .fm-doc-head h1{margin:0 0 .2em;font-size:clamp(1.4rem,3vw,2.1rem);line-height:1.15}
-  .fm-doc-head p{margin:0 0 2rem;color:var(--ink-dim,#666);font-size:1.05rem}
-  .fm-doc-figure{margin:0 0 2rem;padding:1rem;overflow-x:auto;background:var(--ground,#fafafa);border:1px solid var(--border,#ddd);border-radius:12px}
+  .fm-doc-head p{margin:0 0 2rem;color:var(--ui-ink-dim);font-size:1.05rem}
+  .fm-doc-figure{margin:0 0 2rem;padding:1rem;overflow-x:auto;border:1px solid var(--ui-border);border-radius:12px}
   .fm-doc-figure svg{max-width:none;height:auto}
   .fm-doc-steps{display:grid;gap:1.6rem;max-width:76ch}
-  .fm-doc-step{border-top:1px solid var(--border,#ddd);padding-top:1.2rem}
-  .fm-doc-eyebrow{margin:0;color:var(--c1,#26f);font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+  .fm-doc-step{border-top:1px solid var(--ui-border);padding-top:1.2rem}
+  .fm-doc-eyebrow{margin:0;color:var(--ui-accent);font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
   .fm-doc-step h2{margin:.15em 0 .4em;font-size:1.25rem;line-height:1.2}
-  .fm-doc-lede{margin:0 0 .8em;color:var(--ink-dim,#666)}
-  .fm-doc-missing{color:var(--c4,#c33);font-style:italic}
+  .fm-doc-lede{margin:0 0 .8em;color:var(--ui-ink-dim)}
+  .fm-doc-missing{color:var(--ui-warn-ink);font-style:italic}
   .fm-doc-body>*+*{margin-top:.8em}
   .fm-doc-body table{width:100%;border-collapse:collapse}
-  .fm-doc-body th,.fm-doc-body td{text-align:left;padding:.4em .6em;border-bottom:1px solid var(--border,#ddd)}
-  .fm-doc-body th{color:var(--ink-dim,#666);font-size:.8em;letter-spacing:.06em;text-transform:uppercase}
-  .fm-doc-body code{background:var(--surface-2,#f2f2f2);padding:.1em .35em;border-radius:4px}
-  .fm-doc-body pre{background:var(--surface-2,#f2f2f2);padding:.8em;border-radius:8px;overflow-x:auto}
-  .fm-doc-body blockquote{margin:0;border-left:3px solid var(--c1,#26f);padding-left:.9em;color:var(--ink-dim,#666)}
+  .fm-doc-body th,.fm-doc-body td{text-align:left;padding:.4em .6em;border-bottom:1px solid var(--ui-border)}
+  .fm-doc-body th{color:var(--ui-ink-dim);font-size:.8em;letter-spacing:.06em;text-transform:uppercase}
+  .fm-doc-body code{background:var(--ui-panel-2);padding:.1em .35em;border-radius:4px}
+  .fm-doc-body pre{background:var(--ui-panel-2);padding:.8em;border-radius:8px;overflow-x:auto}
+  .fm-doc-body blockquote{margin:0;border-left:3px solid var(--ui-accent);padding-left:.9em;color:var(--ui-ink-dim)}
+
   .fm-palette-chip{display:flex;align-items:center;gap:3px;width:100%;padding:.35rem;border-radius:8px;cursor:pointer;background:none;border:1px solid transparent;color:inherit}
-  .fm-palette-chip[aria-pressed="true"]{border-color:var(--c1,#26f);background:var(--surface-2,#f2f2f2)}
+  .fm-palette-chip[aria-pressed="true"]{border-color:var(--ui-accent);background:var(--ui-panel-2)}
   .fm-palette-chip span{width:16px;height:16px;border-radius:4px}
   .fm-palette-chip em{margin-left:.4rem;font-style:normal;font-size:.8rem}
-  .fm-swatch-card{display:block;width:100%;text-align:left;padding:.5rem .6rem;border-radius:8px;cursor:pointer;background:none;border:1px solid var(--border,#ddd);margin-bottom:.3rem;color:inherit;font:inherit;font-size:.85rem}
-  .fm-swatch-card[aria-pressed="true"]{border-color:var(--c1,#26f);background:var(--surface-2,#f2f2f2);font-weight:700}
+  .fm-swatch-card{display:block;width:100%;text-align:left;padding:.5rem .6rem;border-radius:8px;cursor:pointer;background:none;border:1px solid var(--ui-border);margin-bottom:.3rem;color:inherit;font:inherit;font-size:.85rem}
+  .fm-swatch-card[aria-pressed="true"]{border-color:var(--ui-accent);background:var(--ui-panel-2);font-weight:700}
   .fm-seg{display:flex;gap:.25rem}
-  .fm-seg button,.fm-zoom button,.fm-panel-tabs button,.fm-topbar-actions button,.fm-file,#fm-samples{font:inherit;font-size:.82rem;padding:.32em .7em;border-radius:999px;border:1px solid var(--border,#ddd);background:var(--surface-2,#f6f6f6);color:inherit;cursor:pointer}
-  .fm-seg button[aria-pressed="true"],.fm-panel-tabs button[aria-pressed="true"]{background:var(--c1,#26f);color:var(--c1-ink,#fff);border-color:var(--c1,#26f)}
-  .fm-seg button:focus-visible,.fm-zoom button:focus-visible,.fm-panel-tabs button:focus-visible,.fm-topbar-actions button:focus-visible,.fm-swatch-card:focus-visible,.fm-palette-chip:focus-visible{outline:2px solid var(--c2,#73f);outline-offset:2px}
-  .fm-primary{background:var(--c1,#26f)!important;color:var(--c1-ink,#fff)!important;border-color:var(--c1,#26f)!important;font-weight:700}
-  .fm-warnings{margin:0;padding:.5rem 1rem;list-style:none;border-top:1px solid var(--border,#ddd);background:var(--c4-soft,#fee);font-size:.8rem;max-height:22vh;overflow:auto;flex:0 0 auto}
+  .fm-seg button,.fm-zoom button,.fm-panel-tabs button,.fm-topbar-actions button,.fm-file,#fm-samples{font:inherit;font-size:.82rem;padding:.32em .7em;border-radius:999px;border:1px solid var(--ui-border);background:var(--ui-panel);color:var(--ui-ink);cursor:pointer}
+  .fm-seg button[aria-pressed="true"],.fm-panel-tabs button[aria-pressed="true"]{background:var(--ui-accent);color:var(--ui-accent-ink);border-color:var(--ui-accent)}
+  .fm-seg button:focus-visible,.fm-zoom button:focus-visible,.fm-panel-tabs button:focus-visible,.fm-topbar-actions button:focus-visible,.fm-swatch-card:focus-visible,.fm-palette-chip:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+  .fm-primary{background:var(--ui-accent)!important;color:var(--ui-accent-ink)!important;border-color:var(--ui-accent)!important;font-weight:700}
+  .fm-warnings{margin:0;padding:.5rem 1rem;list-style:none;border-top:1px solid var(--ui-border);background:var(--ui-warn);color:var(--ui-warn-ink);font-size:.8rem;max-height:22vh;overflow:auto;flex:0 0 auto}
   .fm-warnings li{margin:.15rem 0}
   .fm-warnings code{font-weight:700;margin-right:.5em;opacity:.75}
-  [data-dropping="true"]{outline:3px dashed var(--c1,#26f);outline-offset:-8px}
+  [data-dropping="true"]{outline:3px dashed var(--ui-accent);outline-offset:-8px}
+
   /* Present mode: strip every piece of interface except the flow itself. */
   #app[data-present="true"] .fm-topbar,
   #app[data-present="true"] .fm-rail,
   #app[data-present="true"] .fm-panel-editor,
   #app[data-present="true"] .fm-panel-tabs,
   #app[data-present="true"] .fm-warnings{display:none}
-  #app[data-present="true"] .fm-body{grid-template-columns:1fr;grid-template-rows:1fr}
-  #app[data-present="true"] .fm-main{grid-template-rows:1fr}
+  #app[data-present="true"] .fm-body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+  #app[data-present="true"] .fm-main{grid-template-rows:minmax(0,1fr)}
   #app[data-present="true"] .fm-panel{border-top:0}
   .fm-present-bar{display:none}
   .fm-present-bar[hidden]{display:none}
   #app[data-present="true"] .fm-present-bar:not([hidden]){position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:1rem;padding:.7rem 1.1rem;opacity:0;transition:opacity .25s ease;pointer-events:none}
   #app[data-present="true"] .fm-present-bar:hover,#app[data-present="true"] .fm-present-bar:focus-within,#app[data-present="true"]:hover .fm-present-bar{opacity:1;pointer-events:auto}
-  .fm-present-title{font-weight:800;font-size:1.05rem;letter-spacing:-.01em;color:var(--ink,#111);text-shadow:0 1px 12px var(--ground,#fff)}
+  .fm-present-title{font-weight:800;font-size:1.05rem;letter-spacing:-.01em;color:var(--ui-ink);background:var(--ui-bg);padding:.15em .6em;border-radius:999px}
   .fm-present-actions{margin-left:auto;display:flex;gap:.4rem;align-items:center}
-  .fm-present-actions button{font:inherit;font-size:.8rem;padding:.3em .75em;border-radius:999px;border:1px solid var(--border,#ddd);background:var(--surface-2,#f6f6f6);color:var(--ink,#111);cursor:pointer}
-  .fm-present-actions button[aria-pressed="true"]{background:var(--c1,#26f);color:var(--c1-ink,#fff);border-color:var(--c1,#26f)}
+  .fm-present-actions button{font:inherit;font-size:.8rem;padding:.3em .75em;border-radius:999px;border:1px solid var(--ui-border);background:var(--ui-panel);color:var(--ui-ink);cursor:pointer}
+  .fm-present-actions button[aria-pressed="true"]{background:var(--ui-accent);color:var(--ui-accent-ink);border-color:var(--ui-accent)}
   .fm-present-exit{width:2.1rem;height:2.1rem;font-size:1.15rem;line-height:1;display:grid;place-items:center}
-  .fm-present-actions button:focus-visible{outline:2px solid var(--c2,#73f);outline-offset:2px}
+  .fm-present-actions button:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+
   @media (max-width:900px){
-    .fm-body{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-    .fm-rail{border-right:0;border-bottom:1px solid var(--border,#ddd);max-height:38vh}
-    .fm-main{grid-template-rows:1.6fr 1fr}
+    .fm-body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+    .fm-rail{border-right:0;border-bottom:1px solid var(--ui-border);max-height:38vh}
+    .fm-main{grid-template-rows:minmax(0,1.6fr) minmax(0,1fr)}
   }
 </style>
 </head>

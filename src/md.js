@@ -29,7 +29,7 @@ export function documentToHtml({ meta, model, details, svg }) {
 
   // The reading view leads with the flow itself. The caller passes the already
   // rendered SVG so this module never has to know about the renderer.
-  const figure = svg ? `<figure class="fm-doc-figure">${svg}</figure>` : '';
+  const figure = svg ? `<figure class="fm-doc-figure fm-root">${svg}</figure>` : '';
 
   const steps = (model?.nodes ?? []).map((n) => {
     const d = details?.[n.id];

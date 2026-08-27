@@ -83,6 +83,9 @@ studio reports any section that matches no node, and any node with no section.
   Hover, focus, or an open detail card freezes everything.
 - **Present mode** — full-screen, no interface, just the flow, a restart button,
   and an × (or Esc). Entering it restarts the flow from the beginning.
+- **The style themes the diagram, not the tool** — the style CSS is scoped to
+  the diagram wrapper, so the studio's own chrome stays on a fixed neutral theme
+  no matter which style or palette is selected.
 - **Three views of the diagram** — the styled flow, a plain baseline in
   mermaid's default look, and a rendered reading view (the flow followed by every
   step's detail). The editor below holds the markdown, the mermaid on its own

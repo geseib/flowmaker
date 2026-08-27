@@ -88,7 +88,7 @@ function savePrefs(prefs) {
 
 const STUDIO_HTML = `
 <style id="fm-style-tag"></style>
-<div class="fm-root">
+<div class="fm-app">
   <header class="fm-topbar">
     <strong class="fm-brand">FlowMaker</strong>
     <span id="fm-title" class="fm-doc-title"></span>
@@ -141,7 +141,7 @@ const STUDIO_HTML = `
           </div>
         </div>
         <div class="fm-views" id="fm-views" data-view="flow">
-          <div class="fm-view" data-view="flow">
+          <div class="fm-view fm-root" data-view="flow">
             <div class="fm-canvas" id="fm-canvas"><div class="fm-stage" id="fm-stage"></div></div>
           </div>
           <div class="fm-view fm-mermaid-view" data-view="mermaid" id="fm-mermaid-view"></div>
@@ -210,7 +210,7 @@ export function mountStudio(root) {
   const views = el('#fm-views');
   const mermaidView = el('#fm-mermaid-view');
   const warnStrip = el('#fm-warnings');
-  const fmRoot = root.querySelector('.fm-root');
+  const fmRoot = root.querySelector('.fm-app');
 
   el('#fm-style-list').innerHTML = STYLES.map((s) => `
     <button type="button" class="fm-swatch-card" data-style="${s.key}" aria-pressed="false">

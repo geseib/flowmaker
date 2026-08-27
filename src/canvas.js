@@ -1,3 +1,5 @@
+import { nowMs } from './clock.js';
+
 export const MIN_ZOOM = 0.15;
 // Auto-scroll speed in CSS pixels per second, by density. A marquee is read
 // from a distance by someone walking past, so it crawls; compact is for someone
@@ -12,6 +14,11 @@ export const CANVAS_CSS = `
 .fm-canvas {
   position: relative;
   display: flex;
+  /* As a flex item the canvas defaults to min-width:auto, which refuses to
+     shrink below its content. It then grows to the full width of the diagram,
+     leaving nothing to scroll and no visible crawl. */
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -57,8 +64,6 @@ export function nearestNodeId(nodes, view) {
   }
   return best?.id ?? null;
 }
-const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : 0);
-
 // One step of the auto-scroll crawl, as a pure function of the current state.
 // Extracted so the ping-pong and hold behaviour can be tested with a fake clock
 // instead of a live browser frame loop.
