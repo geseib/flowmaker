@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Turn mermaid flowcharts into beautiful, animated, self-contained HTML flow diagrams.">
+<title>FlowMaker</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#fff;color:#111}
+  #app,#app .fm-root{height:100dvh;display:flex;flex-direction:column;background:var(--ground,#fff);color:var(--ink,#111)}
+  .fm-topbar{display:flex;align-items:baseline;gap:1rem;padding:.7rem 1.1rem;border-bottom:1px solid var(--border,#ddd);flex-wrap:wrap;flex:0 0 auto}
+  .fm-brand{font-weight:800;letter-spacing:-.02em}
+  .fm-doc-title{font-weight:600}
+  .fm-doc-subtitle{color:var(--ink-dim,#666);font-size:.9rem}
+  .fm-topbar-actions{margin-left:auto;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+  .fm-body{flex:1 1 auto;display:grid;grid-template-columns:250px 1fr;min-height:0}
+  .fm-rail{overflow:auto;padding:1rem;border-right:1px solid var(--border,#ddd);display:flex;flex-direction:column;gap:.35rem}
+  .fm-rail h2{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim,#666);margin:.9rem 0 .2rem}
+  .fm-rail label{display:flex;justify-content:space-between;align-items:center;gap:.5rem;font-size:.85rem;margin:.15rem 0}
+  .fm-rail select{font:inherit;font-size:.82rem;padding:.2em .4em;border-radius:6px;border:1px solid var(--border,#ddd);background:var(--surface,#fff);color:inherit}
+  .fm-main{min-width:0;display:grid;grid-template-rows:1.9fr 1fr;min-height:0}
+  .fm-panel{display:flex;flex-direction:column;min-height:0;border-top:1px solid var(--border,#ddd)}
+  .fm-panel-tabs{display:flex;gap:.4rem;align-items:center;padding:.45rem .7rem;border-bottom:1px solid var(--border,#ddd);flex-wrap:wrap;flex:0 0 auto}
+  .fm-zoom{margin-left:auto;display:flex;gap:.3rem;align-items:center;font-size:.82rem}
+  .fm-flip{position:relative;flex:1 1 auto;min-height:0;perspective:1800px}
+  .fm-face{position:absolute;inset:0;backface-visibility:hidden;transition:transform .55s cubic-bezier(.2,.8,.2,1);overflow:hidden;display:flex}
+  .fm-face-front{transform:rotateX(0)}
+  .fm-face-back{transform:rotateX(180deg)}
+  .fm-flip[data-face="back"] .fm-face-front{transform:rotateX(-180deg)}
+  .fm-flip[data-face="back"] .fm-face-back{transform:rotateX(0)}
+  .fm-canvas{flex:1 1 auto}
+  .fm-code,#fm-editor{flex:1 1 auto;width:100%;margin:0;overflow:auto;padding:1rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;border:0;resize:none;background:var(--surface,#fff);color:var(--ink,#111);white-space:pre-wrap;word-break:break-word}
+  #fm-editor:focus-visible{outline:2px solid var(--c1,#26f);outline-offset:-2px}
+  .fm-palette-chip{display:flex;align-items:center;gap:3px;width:100%;padding:.35rem;border-radius:8px;cursor:pointer;background:none;border:1px solid transparent;color:inherit}
+  .fm-palette-chip[aria-pressed="true"]{border-color:var(--c1,#26f);background:var(--surface-2,#f2f2f2)}
+  .fm-palette-chip span{width:16px;height:16px;border-radius:4px}
+  .fm-palette-chip em{margin-left:.4rem;font-style:normal;font-size:.8rem}
+  .fm-swatch-card{display:block;width:100%;text-align:left;padding:.5rem .6rem;border-radius:8px;cursor:pointer;background:none;border:1px solid var(--border,#ddd);margin-bottom:.3rem;color:inherit;font:inherit;font-size:.85rem}
+  .fm-swatch-card[aria-pressed="true"]{border-color:var(--c1,#26f);background:var(--surface-2,#f2f2f2);font-weight:700}
+  .fm-seg{display:flex;gap:.25rem}
+  .fm-seg button,.fm-zoom button,.fm-panel-tabs button,.fm-topbar-actions button,.fm-file,#fm-samples{font:inherit;font-size:.82rem;padding:.32em .7em;border-radius:999px;border:1px solid var(--border,#ddd);background:var(--surface-2,#f6f6f6);color:inherit;cursor:pointer}
+  .fm-seg button[aria-pressed="true"],.fm-panel-tabs button[aria-pressed="true"]{background:var(--c1,#26f);color:var(--c1-ink,#fff);border-color:var(--c1,#26f)}
+  .fm-seg button:focus-visible,.fm-zoom button:focus-visible,.fm-panel-tabs button:focus-visible,.fm-topbar-actions button:focus-visible,.fm-swatch-card:focus-visible,.fm-palette-chip:focus-visible{outline:2px solid var(--c2,#73f);outline-offset:2px}
+  .fm-primary{background:var(--c1,#26f)!important;color:var(--c1-ink,#fff)!important;border-color:var(--c1,#26f)!important;font-weight:700}
+  .fm-warnings{margin:0;padding:.5rem 1rem;list-style:none;border-top:1px solid var(--border,#ddd);background:var(--c4-soft,#fee);font-size:.8rem;max-height:22vh;overflow:auto;flex:0 0 auto}
+  .fm-warnings li{margin:.15rem 0}
+  .fm-warnings code{font-weight:700;margin-right:.5em;opacity:.75}
+  [data-dropping="true"]{outline:3px dashed var(--c1,#26f);outline-offset:-8px}
+  /* Present mode: strip every piece of interface except the flow itself. */
+  #app[data-present="true"] .fm-topbar,
+  #app[data-present="true"] .fm-rail,
+  #app[data-present="true"] .fm-panel-editor,
+  #app[data-present="true"] .fm-panel-tabs,
+  #app[data-present="true"] .fm-warnings{display:none}
+  #app[data-present="true"] .fm-body{grid-template-columns:1fr;grid-template-rows:1fr}
+  #app[data-present="true"] .fm-main{grid-template-rows:1fr}
+  #app[data-present="true"] .fm-panel{border-top:0}
+  .fm-present-bar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:1rem;padding:.7rem 1.1rem;opacity:0;transition:opacity .25s ease;pointer-events:none}
+  .fm-present-bar:hover,.fm-present-bar:focus-within,#app[data-present="true"]:hover .fm-present-bar{opacity:1;pointer-events:auto}
+  .fm-present-title{font-weight:800;font-size:1.05rem;letter-spacing:-.01em;color:var(--ink,#111);text-shadow:0 1px 12px var(--ground,#fff)}
+  .fm-present-actions{margin-left:auto;display:flex;gap:.4rem;align-items:center}
+  .fm-present-actions button{font:inherit;font-size:.8rem;padding:.3em .75em;border-radius:999px;border:1px solid var(--border,#ddd);background:var(--surface-2,#f6f6f6);color:var(--ink,#111);cursor:pointer}
+  .fm-present-actions button[aria-pressed="true"]{background:var(--c1,#26f);color:var(--c1-ink,#fff);border-color:var(--c1,#26f)}
+  .fm-present-exit{width:2.1rem;height:2.1rem;font-size:1.15rem;line-height:1;display:grid;place-items:center}
+  .fm-present-actions button:focus-visible{outline:2px solid var(--c2,#73f);outline-offset:2px}
+  @media (max-width:900px){
+    .fm-body{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+    .fm-rail{border-right:0;border-bottom:1px solid var(--border,#ddd);max-height:38vh}
+    .fm-main{grid-template-rows:1.6fr 1fr}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+  import { mountStudio } from './src/studio.js';
+  mountStudio(document.getElementById('app'));
+</script>
+</body>
+</html>

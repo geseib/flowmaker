@@ -1,0 +1,101 @@
+// Every icon is inline SVG geometry on a 24x24 grid, stroke-based so it inherits
+// currentColor and the style's stroke weight. No emoji, no icon font, no raster,
+// no network. Each one is a handful of primitives: these are read from across a
+// room, not inspected up close.
+const S = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+
+export const ICONS = {
+  document: `<path ${S} d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><polyline ${S} points="14 3 14 8 19 8"/><line ${S} x1="9" y1="13" x2="15" y2="13"/><line ${S} x1="9" y1="17" x2="13" y2="17"/>`,
+  table: `<rect ${S} x="3" y="4" width="18" height="16" rx="2"/><line ${S} x1="3" y1="9" x2="21" y2="9"/><line ${S} x1="3" y1="14" x2="21" y2="14"/><line ${S} x1="10" y1="9" x2="10" y2="20"/>`,
+  decision: `<path ${S} d="M12 2.5 21.5 12 12 21.5 2.5 12z"/><line ${S} x1="12" y1="8.5" x2="12" y2="13"/><circle cx="12" cy="16.2" r="1.1" fill="currentColor"/>`,
+  person: `<circle ${S} cx="12" cy="8" r="3.6"/><path ${S} d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/>`,
+  agent: `<rect ${S} x="4" y="7" width="16" height="12" rx="3"/><line ${S} x1="12" y1="3" x2="12" y2="7"/><circle cx="9" cy="13" r="1.4" fill="currentColor"/><circle cx="15" cy="13" r="1.4" fill="currentColor"/><line ${S} x1="1.8" y1="12" x2="4" y2="12"/><line ${S} x1="20" y1="12" x2="22.2" y2="12"/>`,
+  money: `<circle ${S} cx="12" cy="12" r="9"/><path ${S} d="M14.8 9.2a3 3 0 0 0-2.8-1.7c-1.6 0-2.8.9-2.8 2.1 0 2.9 5.9 1.4 5.9 4.4 0 1.3-1.3 2.3-3.1 2.3a3.2 3.2 0 0 1-3-1.8"/><line ${S} x1="12" y1="5.4" x2="12" y2="18.6"/>`,
+  folder: `<path ${S} d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.2l2 2.5h8.8A1.5 1.5 0 0 1 21 10v7.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/>`,
+  database: `<ellipse ${S} cx="12" cy="6" rx="7.5" ry="3"/><path ${S} d="M4.5 6v12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path ${S} d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3"/>`,
+  clock: `<circle ${S} cx="12" cy="12" r="9"/><polyline ${S} points="12 6.8 12 12 15.6 14"/>`,
+  check: `<circle ${S} cx="12" cy="12" r="9"/><polyline ${S} points="7.8 12.4 10.8 15.4 16.4 9"/>`,
+  alert: `<path ${S} d="M12 3.4 22 20.6H2z"/><line ${S} x1="12" y1="9.6" x2="12" y2="14"/><circle cx="12" cy="17.2" r="1.1" fill="currentColor"/>`,
+  gear: `<circle ${S} cx="12" cy="12" r="3.4"/><path ${S} d="M12 2.6v2.2M12 19.2v2.2M4.4 4.4l1.6 1.6M18 18l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.4 19.6 6 18M18 6l1.6-1.6"/>`,
+  mail: `<rect ${S} x="2.5" y="5" width="19" height="14" rx="2"/><polyline ${S} points="3.4 6.6 12 13 20.6 6.6"/>`,
+  search: `<circle ${S} cx="10.6" cy="10.6" r="6.6"/><line ${S} x1="15.4" y1="15.4" x2="21" y2="21"/>`,
+  start: `<circle ${S} cx="12" cy="12" r="9"/><polygon points="10 8.4 16.4 12 10 15.6" fill="currentColor"/>`,
+  end: `<circle ${S} cx="12" cy="12" r="9"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/>`,
+  shield: `<path ${S} d="M12 2.8 20 6v6c0 4.6-3.3 8.2-8 9.2-4.7-1-8-4.6-8-9.2V6z"/><polyline ${S} points="8.8 12 11.2 14.4 15.4 10"/>`,
+  box: `<path ${S} d="M21 8.2 12 3 3 8.2v7.6L12 21l9-5.2z"/><polyline ${S} points="3 8.2 12 13.4 21 8.2"/><line ${S} x1="12" y1="13.4" x2="12" y2="21"/>`,
+  truck: `<path ${S} d="M2.5 6.5h11v9h-11z"/><path ${S} d="M13.5 10h4l4 3.4v2.1h-8z"/><circle ${S} cx="6.6" cy="18" r="1.9"/><circle ${S} cx="17.4" cy="18" r="1.9"/>`,
+  chart: `<line ${S} x1="4" y1="20" x2="20" y2="20"/><rect x="6" y="12" width="3.2" height="6" fill="currentColor"/><rect x="10.4" y="8" width="3.2" height="10" fill="currentColor"/><rect x="14.8" y="4.5" width="3.2" height="13.5" fill="currentColor"/>`,
+  code: `<polyline ${S} points="8.4 8 4 12 8.4 16"/><polyline ${S} points="15.6 8 20 12 15.6 16"/><line ${S} x1="13.4" y1="5.6" x2="10.6" y2="18.4"/>`,
+  lock: `<rect ${S} x="4.6" y="10.4" width="14.8" height="10" rx="2"/><path ${S} d="M8.4 10.4V7.6a3.6 3.6 0 0 1 7.2 0v2.8"/>`,
+};
+
+export const ICON_NAMES = Object.keys(ICONS);
+
+// Only the Infographic style shows icons. Layout reserves vertical space and
+// the renderer emits the slot based on this, so the two never disagree.
+export function showIconsFor(styleKey) {
+  return styleKey === 'infographic';
+}
+
+// Ordered: the first matching entry wins, so the more specific words come first.
+// Every term matches on a whole-word boundary, which is why "repayment" does not
+// resolve to money.
+const KEYWORDS = [
+  ['money', ['payment', 'pay', 'invoice', 'billing', 'bill', 'charge', 'refund', 'capture', 'price', 'pricing', 'cost', 'budget', 'revenue', 'payout', 'fee', 'salary', 'compensation', 'offer']],
+  ['agent', ['agent', 'automated', 'automation', 'bot', 'model', 'ai', 'ml', 'scoring', 'classifier', 'inference']],
+  ['person', ['manager', 'recruiter', 'candidate', 'customer', 'applicant', 'reviewer', 'interviewer', 'interview', 'engineer', 'analyst', 'staff', 'team', 'human', 'debrief', 'committee', 'panel', 'stakeholder', 'owner']],
+  ['table', ['table', 'spreadsheet', 'roster', 'matrix', 'scorecard', 'inventory']],
+  ['database', ['database', 'db', 'warehouse', 'ledger', 'store', 'persist', 'record', 'index']],
+  ['document', ['document', 'doc', 'contract', 'report', 'form', 'application', 'applications', 'resume', 'policy', 'spec', 'brief', 'statement', 'receipt', 'manifest', 'postmortem']],
+  ['folder', ['folder', 'archive', 'case', 'file', 'files', 'repository', 'bundle', 'collection']],
+  ['mail', ['email', 'mail', 'notify', 'notification', 'message', 'communicate', 'announce', 'inform']],
+  ['clock', ['wait', 'delay', 'hold', 'sla', 'timeout', 'schedule', 'queue', 'pending', 'hours', 'days']],
+  ['check', ['verify', 'validate', 'confirm', 'approve', 'approved', 'complete', 'accept', 'accepted', 'pass', 'signoff']],
+  ['alert', ['alert', 'incident', 'escalate', 'escalation', 'page', 'severity', 'failure', 'fail', 'error', 'reject', 'rejected', 'decline', 'declined', 'rollback', 'breach']],
+  ['search', ['screen', 'search', 'investigate', 'triage', 'detect', 'detection', 'audit', 'inspect', 'diagnose', 'scan']],
+  ['shield', ['security', 'compliance', 'kyc', 'sanctions', 'risk', 'fraud', 'governance', 'privacy']],
+  ['lock', ['authorize', 'authorized', 'authorization', 'authenticate', 'credential', 'permission', 'access', 'identity', 'verification']],
+  ['truck', ['ship', 'shipment', 'carrier', 'deliver', 'delivery', 'delivered', 'dispatch', 'fulfil', 'fulfill', 'fulfillment']],
+  ['box', ['pack', 'picking', 'pick', 'parcel', 'stock', 'reserve', 'provision', 'package', 'backorder']],
+  ['chart', ['metrics', 'analytics', 'dashboard', 'measure', 'monitor', 'monitoring', 'forecast', 'score']],
+  ['code', ['build', 'deploy', 'release', 'commit', 'merge', 'develop', 'implement', 'code', 'test', 'ci', 'pipeline']],
+  ['gear', ['configure', 'configuration', 'setup', 'process', 'run', 'execute', 'operate', 'maintain', 'tune']],
+];
+
+// A shape is a weak signal, used only when nothing stronger matched.
+const SHAPE_FALLBACK = {
+  rhombus: 'decision',
+  hexagon: 'decision',
+  cylinder: 'database',
+  stadium: 'start',
+  circle: 'start',
+  doublecircle: 'end',
+  subroutine: 'gear',
+  parallelogram: 'document',
+  trapezoid: 'document',
+};
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export function iconFor(node) {
+  if (!node) return null;
+
+  // 1. An explicit author choice: A:::icon-money
+  for (const cls of node.classes ?? []) {
+    if (cls.startsWith('icon-')) {
+      const name = cls.slice(5);
+      if (name in ICONS) return name;
+    }
+  }
+
+  // 2. A whole-word keyword match on the label.
+  const label = String(node.label ?? '').toLowerCase();
+  for (const [name, terms] of KEYWORDS) {
+    for (const term of terms) {
+      if (new RegExp(`(^|[^a-z0-9])${escapeRe(term)}([^a-z0-9]|$)`).test(label)) return name;
+    }
+  }
+
+  // 3. The shape, as a last resort.
+  return SHAPE_FALLBACK[node.shape] ?? null;
+}

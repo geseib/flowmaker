@@ -1,0 +1,176 @@
+import { DENSITY } from './constants.js';
+import { getStyle } from './styles/index.js';
+import { deriveTokens } from './palettes.js';
+import { ICONS, iconFor, showIconsFor } from './icons.js';
+import { esc } from './escape.js';
+
+// Decision-ish and terminal-ish shapes get semantic colouring from the palette.
+const KIND = {
+  rhombus: 'decision',
+  hexagon: 'decision',
+  circle: 'terminal',
+  doublecircle: 'terminal',
+  stadium: 'terminal',
+};
+const kindOf = (shape) => KIND[shape] ?? 'process';
+
+function shapeMarkup(n, spec) {
+  const { x, y, w, h } = n;
+  const r = spec.corner;
+  switch (n.shape) {
+    case 'rhombus':
+      return `<polygon class="fm-node-shape" points="${x + w / 2},${y} ${x + w},${y + h / 2} ${x + w / 2},${y + h} ${x},${y + h / 2}"/>`;
+    case 'hexagon': {
+      const i = w * 0.18;
+      return `<polygon class="fm-node-shape" points="${x + i},${y} ${x + w - i},${y} ${x + w},${y + h / 2} ${x + w - i},${y + h} ${x + i},${y + h} ${x},${y + h / 2}"/>`;
+    }
+    case 'parallelogram': {
+      const i = w * 0.15;
+      return `<polygon class="fm-node-shape" points="${x + i},${y} ${x + w},${y} ${x + w - i},${y + h} ${x},${y + h}"/>`;
+    }
+    case 'trapezoid': {
+      const i = w * 0.14;
+      return `<polygon class="fm-node-shape" points="${x + i},${y} ${x + w - i},${y} ${x + w},${y + h} ${x},${y + h}"/>`;
+    }
+    case 'circle':
+      return `<ellipse class="fm-node-shape" cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}"/>`;
+    case 'doublecircle':
+      return `<ellipse class="fm-node-shape" cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}"/>`
+        + `<ellipse class="fm-node-shape fm-node-inner" cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2 - 7}" ry="${h / 2 - 7}" fill="none"/>`;
+    case 'stadium':
+      return `<rect class="fm-node-shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}"/>`;
+    case 'round':
+      return `<rect class="fm-node-shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="${r * 1.8}"/>`;
+    case 'subroutine':
+      return `<rect class="fm-node-shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="${r * 0.4}"/>`
+        + `<line class="fm-node-rule" x1="${x + 10}" y1="${y}" x2="${x + 10}" y2="${y + h}"/>`
+        + `<line class="fm-node-rule" x1="${x + w - 10}" y1="${y}" x2="${x + w - 10}" y2="${y + h}"/>`;
+    case 'cylinder': {
+      const e = h * 0.16;
+      return `<path class="fm-node-shape" d="M ${x} ${y + e} a ${w / 2} ${e} 0 0 1 ${w} 0 v ${h - e * 2} a ${w / 2} ${e} 0 0 1 ${-w} 0 Z"/>`;
+    }
+    default:
+      return `<rect class="fm-node-shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/>`;
+  }
+}
+
+// Greedy wrap on the pre-computed node width, mirroring measure.js.
+function wrapLabel(label, n, spec) {
+  const maxChars = Math.max(6, Math.floor((n.w - spec.padX * 2) / (spec.fontSize * 0.58)));
+  const words = String(label).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && candidate.length > maxChars) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [''];
+}
+
+// The icon anchors to the top of the node and reports where it ends, so the
+// label can be centred in the space beneath it rather than fighting it for the
+// middle. Layout has already reserved the height (see layout.js iconSpace).
+function iconMarkup(n, spec, iconName) {
+  if (!iconName) return { markup: '', bottom: null };
+  const size = spec.fontSize * 1.5;
+  const scale = size / 24;
+  const top = n.y + spec.padY * 0.6;
+  const x = n.x + n.w / 2 - size / 2;
+  return {
+    markup: `<g class="fm-node-icon" aria-hidden="true" transform="translate(${x.toFixed(2)} ${top.toFixed(2)}) scale(${scale.toFixed(4)})">${ICONS[iconName]}</g>`,
+    bottom: top + size,
+  };
+}
+
+function nodeMarkup(n, spec, details, showIcons) {
+  const detail = details?.[n.id];
+  const iconName = showIcons ? iconFor(n) : null;
+  const icon = iconMarkup(n, spec, iconName);
+  const lines = wrapLabel(n.label, n, spec);
+  const lineH = spec.fontSize * 1.28;
+
+  // With an icon, the label occupies the band between the icon and the bottom
+  // padding. Without one, it simply centres on the node.
+  const bandTop = icon.bottom === null ? n.y : icon.bottom + spec.padY * 0.35;
+  const bandBottom = n.y + n.h - (icon.bottom === null ? 0 : spec.padY * 0.5);
+  const centre = (bandTop + bandBottom) / 2;
+  const startY = centre - ((lines.length - 1) * lineH) / 2;
+
+  const tspans = lines
+    .map((line, i) => `<tspan x="${n.x + n.w / 2}" y="${(startY + i * lineH).toFixed(2)}">${esc(line)}</tspan>`)
+    .join('');
+  const name = detail?.tooltip ? `${n.label}. ${detail.tooltip}` : n.label;
+  return [
+    `<g class="fm-node" data-node-id="${esc(n.id)}" data-kind="${kindOf(n.shape)}"`,
+    iconName ? ` data-icon="${esc(iconName)}"` : '',
+    detail ? ' data-has-detail="true"' : '',
+    ` tabindex="0" role="button" aria-label="${esc(name)}">`,
+    shapeMarkup(n, spec),
+    icon.markup,
+    `<text class="fm-node-label" text-anchor="middle" dominant-baseline="middle">${tspans}</text>`,
+    '</g>',
+  ].join('');
+}
+
+function edgeMarkup(e, spec) {
+  const marker = e.isBackEdge ? 'fm-arrow-alert' : 'fm-arrow-head';
+  const attrs = [
+    `data-edge="${esc(e.from)}__${esc(e.to)}"`,
+    `data-kind="${e.kind}"`,
+    e.isBackEdge ? 'data-back="true"' : '',
+    e.arrow === 'none' ? '' : `marker-end="url(#${marker})"`,
+    e.arrow === 'bidirectional' ? `marker-start="url(#${marker}-start)"` : '',
+  ].filter(Boolean).join(' ');
+  const path = `<path class="fm-edge" d="${e.path}" ${attrs}/>`;
+  if (!e.label) return path;
+  const halfW = e.label.length * spec.labelFontSize * 0.32 + 8;
+  const halfH = spec.labelFontSize * 0.85;
+  return path
+    + `<rect class="fm-edge-label-bg" x="${e.labelPos.x - halfW}" y="${e.labelPos.y - halfH}" width="${halfW * 2}" height="${halfH * 2}" rx="4"/>`
+    + `<text class="fm-edge-label" x="${e.labelPos.x}" y="${e.labelPos.y}" text-anchor="middle" dominant-baseline="middle">${esc(e.label)}</text>`;
+}
+
+export function styleCss(styleKey, tokens, densityKey) {
+  const style = getStyle(styleKey);
+  const spec = DENSITY[densityKey] ?? DENSITY.standard;
+  return style.css(tokens, spec);
+}
+
+export function renderSvg(model, opts = {}) {
+  const spec = DENSITY[model.density] ?? DENSITY.standard;
+  const details = opts.details ?? {};
+  const arrowSize = Math.max(6, spec.stroke * 2.6);
+
+  const defs = `<defs>`
+    + `<marker id="fm-arrow-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto-start-reverse"><path class="fm-arrow" d="M 0 0 L 10 5 L 0 10 z"/></marker>`
+    + `<marker id="fm-arrow-alert" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto-start-reverse"><path class="fm-arrow-alert" d="M 0 0 L 10 5 L 0 10 z"/></marker>`
+    + `<marker id="fm-arrow-head-start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto"><path class="fm-arrow" d="M 10 0 L 0 5 L 10 10 z"/></marker>`
+    + `<marker id="fm-arrow-alert-start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto"><path class="fm-arrow-alert" d="M 10 0 L 0 5 L 10 10 z"/></marker>`
+    + `</defs>`;
+
+  const subgraphs = (model.subgraphs ?? [])
+    .filter((s) => s.w > 0)
+    .map((s) => `<g class="fm-subgraph" data-subgraph="${esc(s.id)}">`
+      + `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}"/>`
+      + `<text x="${s.x + 18}" y="${s.y + 22}">${esc(s.label)}</text></g>`)
+    .join('');
+
+  const edges = model.edges.map((e) => edgeMarkup(e, spec)).join('');
+  const showIcons = opts.showIcons ?? showIconsFor(opts.styleKey);
+  const nodes = model.nodes.map((n) => nodeMarkup(n, spec, details, showIcons)).join('');
+  const title = opts.meta?.title ? `<title>${esc(opts.meta.title)}</title>` : '';
+
+  return `<svg class="fm-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${model.bounds.w} ${model.bounds.h}" `
+    + `width="${model.bounds.w}" height="${model.bounds.h}" role="img" `
+    + `aria-label="${esc(opts.meta?.title ?? 'Flow diagram')}">`
+    + `${title}${defs}<g class="fm-layer-subgraphs">${subgraphs}</g>`
+    + `<g class="fm-layer-edges">${edges}</g><g class="fm-layer-nodes">${nodes}</g></svg>`;
+}
+
+export { deriveTokens };

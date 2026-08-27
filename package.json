@@ -1,0 +1,14 @@
+{
+  "name": "flowmaker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mermaid flowcharts to beautiful, animated, self-contained HTML flow diagrams",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "build": "node build.js",
+    "serve": "node server.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
