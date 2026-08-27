@@ -1,4 +1,4 @@
-import { DENSITY, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, SPEEDS, DEFAULT_SPEED } from './constants.js';
+import { DENSITY, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, SPEEDS, DEFAULT_SPEED } from './constants.js';
 import { PALETTES, getPalette, deriveTokens } from './palettes.js';
 import { STYLES, getStyle } from './styles/index.js';
 import { renderSvg, styleCss } from './render.js';
@@ -25,6 +25,7 @@ const SAMPLE_FILES = [
   ['interviewing-and-selection.md', 'Interviewing & Selection'],
   ['customer-onboarding-kyc.md', 'Customer Onboarding & KYC'],
   ['incident-response.md', 'Incident Response'],
+  ['org-chart.md', 'Engineering Organisation'],
 ];
 
 const STARTER_DOC = `---
@@ -115,6 +116,7 @@ const STUDIO_HTML = `
       <h2>Style</h2><div id="fm-style-list" class="fm-style-list"></div>
       <h2>Palette</h2><div id="fm-palette-list" class="fm-palette-list"></div>
       <h2>Layout</h2>
+      <label title="Flow arranges the steps in layers; Tree hangs a hierarchy, for an org chart">Arrangement <select id="fm-layout"></select></label>
       <label>Density <select id="fm-density"></select></label>
       <label>Direction <select id="fm-direction"></select></label>
       <label title="How a loop back to an earlier step is drawn">Loops <select id="fm-loops"></select></label>
@@ -236,6 +238,8 @@ export function mountStudio(root) {
     .map((d) => `<option value="${d}">${d[0].toUpperCase()}${d.slice(1)}</option>`).join('');
   el('#fm-direction').innerHTML = DIRECTION_KEYS
     .map((d) => `<option value="${d}">${d}</option>`).join('');
+  el('#fm-layout').innerHTML = LAYOUT_KEYS
+    .map((k) => `<option value="${k}">${k[0].toUpperCase()}${k.slice(1)}</option>`).join('');
   el('#fm-loops').innerHTML = LOOP_KEYS
     .map((k) => `<option value="${k}">${k[0].toUpperCase()}${k.slice(1)}</option>`).join('');
 
@@ -269,6 +273,7 @@ export function mountStudio(root) {
       density: r.meta.density,
       direction: r.meta.direction,
       loops: r.meta.loops,
+      layout: r.meta.layout,
       animationMode: state.animationMode,
       autoScroll: state.autoScroll,
       speed: state.speed,
@@ -364,6 +369,7 @@ export function mountStudio(root) {
     el('#fm-density').value = resolved.meta.density;
     el('#fm-direction').value = resolved.meta.direction;
     el('#fm-loops').value = resolved.meta.loops;
+    el('#fm-layout').value = resolved.meta.layout;
     el('#fm-title').textContent = resolved.meta.title;
     el('#fm-present-title').textContent = resolved.meta.title;
     el('#fm-subtitle').textContent = resolved.meta.subtitle;
@@ -635,7 +641,8 @@ export function mountStudio(root) {
     }
   });
 
-  for (const [id, key] of [['fm-density', 'density'], ['fm-direction', 'direction'], ['fm-loops', 'loops']]) {
+  for (const [id, key] of [['fm-density', 'density'], ['fm-direction', 'direction'],
+    ['fm-loops', 'loops'], ['fm-layout', 'layout']]) {
     el(`#${id}`).addEventListener('change', (ev) => {
       state.overrides[key] = ev.target.value;
       render();

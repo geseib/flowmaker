@@ -11,13 +11,13 @@ no network requests at runtime.
 
 ```bash
 node server.js                 # http://localhost:8321
-node --test 'test/*.test.js'   # 193 tests, no devDependencies
+node --test 'test/*.test.js'   # 216 tests, no devDependencies
 node build.js                  # dist/ — one self-contained file, opens by double-click
 ```
 
 `dist/` is generated and not committed. `build.js` writes `dist/flowmaker.html`
 (and an identical `dist/index.html`, which is what gets deployed). The bundle
-embeds all five samples, so the hosted site is that single file and nothing else.
+embeds every sample, so the hosted site is that single file and nothing else.
 
 ## Deploying
 
@@ -41,6 +41,7 @@ palette: ember           # harbor | ember | forest | midnight
 direction: LR            # LR | RL | TD | BT
 density: marquee         # marquee | standard | compact
 loops: auto              # auto | line | wrap
+layout: flow             # flow | tree (tree is an org chart: one box above each)
 ---
 
 ```mermaid
@@ -73,6 +74,12 @@ studio reports any section that matches no node, and any node with no section.
   the label (`Capture Payment` → money, `Review Contract` → document), falling
   back to the mermaid shape, and sets it in a ring. Force one with
   `A:::icon-money`. No emoji, no icon fonts, no images.
+- **Org charts** — `layout: tree` arranges a reporting hierarchy instead of a
+  flow: every box is hung over the midpoint of its first and last report, levels
+  are sized by their tallest box, and lines run out, along a shared bus, and in.
+  A chart that is not a hierarchy — a box reporting to two others, or a cycle —
+  says which box broke it and falls back to the flow layout rather than drawing
+  something wrong. Use `<br/>` in a label to put a name over a role.
 - **Loop-backs read as loops** — a short cycle routes through a reserved gutter
   beneath the spine in the alert colour. A cycle spanning three or more ranks
   becomes a matching pair of lettered connectors instead, the way an off-page
@@ -119,12 +126,13 @@ studio reports any section that matches no node, and any node with no section.
 
 ## Samples
 
-`samples/` holds five complete flows: a linear spine with retry loops
+`samples/` holds five flows and one hierarchy: a linear spine with retry loops
 (Order Processing), four subgraph lanes with cross-lane rework
 (Product Development Lifecycle), fan-out with three terminal states
 (Interviewing and Selection), compliance gates with resubmission cycles
 (Customer Onboarding and KYC), and the heaviest loop-back case
-(Incident Response).
+(Incident Response), plus a twelve-box reporting hierarchy
+(Engineering Organisation) for the tree layout.
 
 ## Layout
 

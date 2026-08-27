@@ -38,19 +38,25 @@ export function browserMeasure(spec, fontFamily) {
 
   return (label) => {
     const maxTextW = MAX_LABEL_W - spec.padX * 2;
-    const words = String(label).split(/\s+/).filter(Boolean);
     const lines = [];
-    let line = '';
-    for (const word of words) {
-      const candidate = line ? `${line} ${word}` : word;
-      if (line && widthOf(candidate) > maxTextW) {
-        lines.push(line);
-        line = word;
-      } else {
-        line = candidate;
+    for (const segment of String(label).split(/<br\s*\/?>/i)) {
+      const words = segment.split(/\s+/).filter(Boolean);
+      if (words.length === 0) {
+        lines.push('');
+        continue;
       }
+      let line = '';
+      for (const word of words) {
+        const candidate = line ? `${line} ${word}` : word;
+        if (line && widthOf(candidate) > maxTextW) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = candidate;
+        }
+      }
+      if (line) lines.push(line);
     }
-    if (line) lines.push(line);
     const widest = lines.length ? Math.max(...lines.map(widthOf)) : 0;
     return {
       w: Math.round(Math.min(MAX_LABEL_W, Math.max(spec.minNodeW, widest + spec.padX * 2))),

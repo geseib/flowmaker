@@ -1,5 +1,7 @@
 import { DENSITY, MAX_LABEL_W } from './constants.js';
+import { round, estimateTextSize, roundedPath } from './geometry.js';
 import { iconFor } from './icons.js';
+import { treeLayout, inspectTree } from './tree.js';
 
 export { DENSITY };
 
@@ -10,8 +12,6 @@ const SUBGRAPH_PAD = 26;
 const WRAP_MIN_SPAN = 3;
 const WRAP_TAGS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split('');
 const SUBGRAPH_HEADER = 30;
-
-const round = (n) => Math.round(n * 100) / 100;
 
 // Depth-first search in node-declaration order. An edge pointing at a node that
 // is currently on the DFS stack closes a cycle, so it becomes a back edge.
@@ -79,19 +79,6 @@ export function assignRanks(nodes, forwardEdges) {
   return ranks;
 }
 
-// Headless text measurement. Deliberately crude and deterministic: the renderer
-// re-measures with the real font in the browser and re-runs layout.
-function estimateTextSize(label, { fontSize, padX, padY, minNodeW, nodeH }) {
-  const charW = fontSize * 0.58;
-  const maxTextW = MAX_LABEL_W - padX * 2;
-  const oneLineW = String(label).length * charW;
-  const lines = Math.max(1, Math.ceil(oneLineW / maxTextW));
-  return {
-    w: Math.round(Math.min(MAX_LABEL_W, Math.max(minNodeW, oneLineW + padX * 2))),
-    h: Math.round(Math.max(nodeH, lines * fontSize * 1.35 + padY * 2)),
-  };
-}
-
 // Shapes that need extra room so the label does not spill outside the outline.
 const SHAPE_INFLATE = {
   rhombus: { w: 1.35, h: 1.5 },
@@ -145,26 +132,18 @@ export function orderRanks(nodes, edges, ranks) {
   return pos;
 }
 
-function roundedPath(points, radius) {
-  if (points.length < 2) return '';
-  let d = `M ${round(points[0].x)} ${round(points[0].y)}`;
-  for (let i = 1; i < points.length - 1; i += 1) {
-    const prev = points[i - 1];
-    const cur = points[i];
-    const next = points[i + 1];
-    const inLen = Math.hypot(cur.x - prev.x, cur.y - prev.y) || 1;
-    const outLen = Math.hypot(next.x - cur.x, next.y - cur.y) || 1;
-    const r = Math.min(radius, inLen / 2, outLen / 2);
-    const a = { x: cur.x - ((cur.x - prev.x) / inLen) * r, y: cur.y - ((cur.y - prev.y) / inLen) * r };
-    const b = { x: cur.x + ((next.x - cur.x) / outLen) * r, y: cur.y + ((next.y - cur.y) / outLen) * r };
-    d += ` L ${round(a.x)} ${round(a.y)} Q ${round(cur.x)} ${round(cur.y)} ${round(b.x)} ${round(b.y)}`;
-  }
-  const last = points.at(-1);
-  d += ` L ${round(last.x)} ${round(last.y)}`;
-  return d;
-}
-
 export function layout(graph, opts = {}) {
+  // A hierarchy is arranged by its own rules. If the graph is not one, say why
+  // and fall back rather than drawing a chart that misrepresents it.
+  if (opts.layout === 'tree') {
+    const check = inspectTree(graph);
+    if (check.ok) return treeLayout(graph, opts);
+    opts.onWarning?.({
+      code: 'NOT_A_HIERARCHY',
+      message: `${check.message} Falling back to the flow layout.`,
+    });
+  }
+
   const direction = opts.direction ?? graph.direction ?? 'LR';
   const densityKey = opts.density ?? 'standard';
   const spec = DENSITY[densityKey] ?? DENSITY.standard;

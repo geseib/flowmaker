@@ -26,6 +26,7 @@ export function bootExport() {
     measure: browserMeasure(spec, FONT_STACK),
     iconSpace: showIconsFor(data.styleKey),
     loops: data.loops,
+    layout: data.layout,
   });
 
   stage.innerHTML = renderSvg(model, {

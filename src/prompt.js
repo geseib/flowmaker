@@ -1,4 +1,4 @@
-import { STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, DEFAULTS } from './constants.js';
+import { STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, DEFAULTS } from './constants.js';
 import { PALETTES } from './palettes.js';
 import { ICON_NAMES } from './icons.js';
 
@@ -82,6 +82,7 @@ prompt. In the real file it is a normal three-backtick \`mermaid\` block.)
   - \`direction\`: ${list(DIRECTION_KEYS)} — \`LR\` reads best for a long process
   - \`density\`: ${list(DENSITY_KEYS)} — \`marquee\` is for a screen read at a distance
   - \`loops\`: ${list(LOOP_KEYS)} — \`auto\` draws a short loop as a line and a long
+  - \`layout\`: ${list(LAYOUT_KEYS)} — use \`tree\` only for a reporting hierarchy (an org chart), where every box has exactly one box above it; pair it with \`direction: TD\`
     one as a pair of lettered connectors
 - **Exactly one** fenced \`mermaid\` block, containing a \`flowchart\`. Keep it
   plain and valid so the same file still renders on GitHub and in VS Code. Put

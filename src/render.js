@@ -57,19 +57,27 @@ function shapeMarkup(n, spec) {
 // Greedy wrap on the pre-computed node width, mirroring measure.js.
 function wrapLabel(label, n, spec) {
   const maxChars = Math.max(6, Math.floor((n.w - spec.padX * 2) / (spec.fontSize * 0.58)));
-  const words = String(label).split(/\s+/).filter(Boolean);
   const lines = [];
-  let line = '';
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (line && candidate.length > maxChars) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = candidate;
+  // A <br> in the label is a deliberate break, which is how a box carries a
+  // name on one line and a role on the next.
+  for (const segment of String(label).split(/<br\s*\/?>/i)) {
+    const words = segment.split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+      lines.push('');
+      continue;
     }
+    let line = '';
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (line && candidate.length > maxChars) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+    if (line) lines.push(line);
   }
-  if (line) lines.push(line);
   return lines.length ? lines : [''];
 }
 
@@ -129,7 +137,9 @@ function nodeMarkup(n, spec, details, showIcons, nativeTitles) {
   const tspans = lines
     .map((line, i) => `<tspan x="${n.x + n.w / 2}" y="${(startY + i * lineH).toFixed(2)}">${esc(line)}</tspan>`)
     .join('');
-  const name = detail?.tooltip ? `${n.label}. ${detail.tooltip}` : n.label;
+  // A forced break is a layout instruction, not something to read out.
+  const spoken = String(n.label).replace(/<br\s*\/?>/gi, ', ');
+  const name = detail?.tooltip ? `${spoken}. ${detail.tooltip}` : spoken;
   return [
     `<g class="fm-node" data-node-id="${esc(n.id)}" data-kind="${kindOf(n.shape)}"`,
     iconName ? ` data-icon="${esc(iconName)}"` : '',

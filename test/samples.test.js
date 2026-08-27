@@ -8,13 +8,13 @@ import { parseMermaid } from '../src/mermaid.js';
 import { layout } from '../src/layout.js';
 import { renderSvg } from '../src/render.js';
 import { PALETTES, getPalette } from '../src/palettes.js';
-import { STYLE_KEYS, DENSITY_KEYS } from '../src/constants.js';
+import { STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LAYOUT_KEYS } from '../src/constants.js';
 
 const DIR = fileURLToPath(new URL('../samples/', import.meta.url));
 const files = readdirSync(DIR).filter((f) => f.endsWith('.md')).sort();
 
-test('the samples directory holds all five flows', () => {
-  assert.equal(files.length, 5, `expected five samples, found ${files.length}`);
+test('the samples directory holds every sample', () => {
+  assert.equal(files.length, 6, `expected six samples, found ${files.length}`);
 });
 
 for (const file of files) {
@@ -33,7 +33,11 @@ for (const file of files) {
     assert.ok(STYLE_KEYS.includes(doc.meta.style), `unknown style ${doc.meta.style}`);
     assert.ok(PALETTES.some((p) => p.key === doc.meta.palette), `unknown palette ${doc.meta.palette}`);
     assert.ok(DENSITY_KEYS.includes(doc.meta.density), `unknown density ${doc.meta.density}`);
-    assert.equal(doc.meta.direction, 'LR', 'v1 samples are horizontal');
+    assert.ok(DIRECTION_KEYS.includes(doc.meta.direction), `unknown direction ${doc.meta.direction}`);
+    if (doc.meta.layout) assert.ok(LAYOUT_KEYS.includes(doc.meta.layout), `unknown layout ${doc.meta.layout}`);
+    // Flows read horizontally; a hierarchy reads top down.
+    const expected = doc.meta.layout === 'tree' ? 'TD' : 'LR';
+    assert.equal(doc.meta.direction, expected);
   });
 
   test(`${file}: has a substantial graph`, () => {
@@ -60,7 +64,7 @@ for (const file of files) {
 
   test(`${file}: lays out and renders in every style and density`, () => {
     for (const density of DENSITY_KEYS) {
-      const model = layout(graph, { density });
+      const model = layout(graph, { density, layout: doc.meta.layout ?? 'flow' });
       assert.equal(model.nodes.length, graph.nodes.length);
       for (let i = 0; i < model.nodes.length; i += 1) {
         for (let j = i + 1; j < model.nodes.length; j += 1) {

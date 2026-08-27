@@ -11,6 +11,11 @@ export const DIRECTION_KEYS = ['LR', 'RL', 'TD', 'BT'];
 //   line  - always a real line through the gutter beneath the flow
 //   wrap  - always a pair of lettered connectors, like an off-page connector
 //   auto  - a line for a short loop, a wrap once it spans WRAP_MIN_SPAN ranks
+// How the diagram is arranged.
+//   flow - layered left to right or top to bottom, the default
+//   tree - a hierarchy: one parent per box, children centred beneath it
+export const LAYOUT_KEYS = ['flow', 'tree'];
+
 export const LOOP_KEYS = ['auto', 'line', 'wrap'];
 
 // Playback speed multipliers offered next to the zoom controls. They scale the
@@ -24,6 +29,7 @@ export const DEFAULTS = {
   direction: 'LR',
   density: 'standard',
   loops: 'auto',
+  layout: 'flow',
 };
 
 // Hard cap on node width. Beyond this a label wraps instead of stretching.

@@ -1,4 +1,4 @@
-import { DEFAULTS, STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS } from './constants.js';
+import { DEFAULTS, STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS } from './constants.js';
 import { PALETTES } from './palettes.js';
 import { parseDocument } from './parse.js';
 import { parseMermaid } from './mermaid.js';
@@ -33,6 +33,7 @@ export function resolveDocument(mdText, overrides = {}, measure) {
     direction: overrides.direction
       ?? pick('direction', doc.meta.direction, DIRECTION_KEYS, graph.direction ?? DEFAULTS.direction, warnings),
     loops: overrides.loops ?? pick('loops', doc.meta.loops, LOOP_KEYS, DEFAULTS.loops, warnings),
+    layout: overrides.layout ?? pick('layout', doc.meta.layout, LAYOUT_KEYS, DEFAULTS.layout, warnings),
   };
 
   // The cross-check parse.js could not do: it has no node list.
@@ -53,6 +54,8 @@ export function resolveDocument(mdText, overrides = {}, measure) {
   }
 
   const model = layout(graph, {
+    layout: meta.layout,
+    onWarning: (w) => warnings.push(w),
     direction: meta.direction,
     density: meta.density,
     measure,

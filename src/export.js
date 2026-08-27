@@ -71,6 +71,7 @@ export function buildExport(input, bundle = {}) {
     density,
     direction: input.direction ?? input.graph?.direction ?? DEFAULTS.direction,
     loops: input.loops ?? DEFAULTS.loops,
+    layout: input.layout ?? DEFAULTS.layout,
     animationMode: input.animationMode ?? 'pulse',
     autoScroll: input.autoScroll ?? (input.animationMode ?? 'pulse') === 'pulse',
     speed: SPEEDS.includes(input.speed) ? input.speed : DEFAULT_SPEED,
