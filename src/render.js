@@ -183,13 +183,17 @@ export function styleCss(styleKey, tokens, densityKey) {
 export function renderSvg(model, opts = {}) {
   const spec = DENSITY[model.density] ?? DENSITY.standard;
   const details = opts.details ?? {};
-  const arrowSize = Math.max(6, spec.stroke * 2.6);
+  // markerUnits defaults to strokeWidth, which multiplies the marker box by the
+  // edge's stroke width. At marquee density with a thick style that produced
+  // arrowheads dozens of pixels across, swallowing the wrap connectors and
+  // dwarfing the nodes. Size them in absolute units instead.
+  const arrowSize = Math.max(11, spec.stroke * 3.6);
 
   const defs = `<defs>`
-    + `<marker id="fm-arrow-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto-start-reverse"><path class="fm-arrow" d="M 0 0 L 10 5 L 0 10 z"/></marker>`
-    + `<marker id="fm-arrow-alert" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto-start-reverse"><path class="fm-arrow-alert" d="M 0 0 L 10 5 L 0 10 z"/></marker>`
-    + `<marker id="fm-arrow-head-start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto"><path class="fm-arrow" d="M 10 0 L 0 5 L 10 10 z"/></marker>`
-    + `<marker id="fm-arrow-alert-start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto"><path class="fm-arrow-alert" d="M 10 0 L 0 5 L 10 10 z"/></marker>`
+    + `<marker id="fm-arrow-head" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto-start-reverse"><path class="fm-arrow" d="M 0 0 L 10 5 L 0 10 z"/></marker>`
+    + `<marker id="fm-arrow-alert" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto-start-reverse"><path class="fm-arrow-alert" d="M 0 0 L 10 5 L 0 10 z"/></marker>`
+    + `<marker id="fm-arrow-head-start" viewBox="0 0 10 10" refX="1" refY="5" markerUnits="userSpaceOnUse" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto"><path class="fm-arrow" d="M 10 0 L 0 5 L 10 10 z"/></marker>`
+    + `<marker id="fm-arrow-alert-start" viewBox="0 0 10 10" refX="1" refY="5" markerUnits="userSpaceOnUse" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto"><path class="fm-arrow-alert" d="M 10 0 L 0 5 L 10 10 z"/></marker>`
     + `</defs>`;
 
   const subgraphs = (model.subgraphs ?? [])

@@ -296,7 +296,7 @@ export function layout(graph, opts = {}) {
   // Tags hang just under their own node rather than down in the gutter with the
   // loop lines. Parked at the bottom of the canvas they fall outside the view at
   // 1:1 on a short panel, which makes the whole connector easy to miss.
-  const tagDrop = tagRadius * 1.5;
+  const tagDrop = tagRadius * 2.2;
 
   const edges = (graph.edges ?? []).map((e) => {
     const from = nodeById.get(e.from);
