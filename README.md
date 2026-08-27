@@ -10,9 +10,22 @@ no network requests at runtime.
 ## Run it
 
 ```bash
-node server.js        # http://localhost:8321
-node --test 'test/*.test.js'
-node build.js         # dist/flowmaker.html, one file, opens by double-click
+node server.js                 # http://localhost:8321
+node --test 'test/*.test.js'   # 47 tests, no devDependencies
+node build.js                  # dist/ — one self-contained file, opens by double-click
+```
+
+`dist/` is generated and not committed. `build.js` writes `dist/flowmaker.html`
+(and an identical `dist/index.html`, which is what gets deployed). The bundle
+embeds all five samples, so the hosted site is that single file and nothing else.
+
+## Deploying
+
+The repo is a static site with no framework. `vercel.json` already pins the
+settings, so the Vercel dashboard preset does not matter:
+
+```json
+{ "framework": null, "buildCommand": "node build.js", "outputDirectory": "dist" }
 ```
 
 ## The document format

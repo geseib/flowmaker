@@ -143,6 +143,9 @@ const shell = readFileSync(resolve(ROOT, 'index.html'), 'utf8')
 mkdirSync(resolve(ROOT, 'dist'), { recursive: true });
 writeFileSync(resolve(ROOT, 'dist/runtime.js'), runtimeJs);
 writeFileSync(resolve(ROOT, 'dist/flowmaker.html'), shell);
+// dist/ is also the deploy output. The bundle embeds every sample, so the
+// hosted site is this one file and nothing else.
+writeFileSync(resolve(ROOT, 'dist/index.html'), shell);
 console.log(
   `Built dist/flowmaker.html (${(Buffer.byteLength(shell) / 1024).toFixed(0)}KB)`
   + ` and dist/runtime.js (${(Buffer.byteLength(runtimeJs) / 1024).toFixed(0)}KB)`,
