@@ -363,6 +363,9 @@ export function attachRuntime(root, config = {}) {
     animator,
     setAnimationMode: (mode) => animator.setMode(mode),
     restart: () => animator.restart(),
+    goToId: (id) => animator.goToId(id),
+    deferAdvance: (ms) => animator.deferAdvance(ms),
+    getMode: () => animator.getState().mode,
     pause: pauseAll,
     resume: resumeAll,
     focusNode: (id) => {

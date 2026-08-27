@@ -11,7 +11,7 @@ no network requests at runtime.
 
 ```bash
 node server.js                 # http://localhost:8321
-node --test 'test/*.test.js'   # 134 tests, no devDependencies
+node --test 'test/*.test.js'   # 139 tests, no devDependencies
 node build.js                  # dist/ — one self-contained file, opens by double-click
 ```
 
@@ -83,10 +83,14 @@ studio reports any section that matches no node, and any node with no section.
   Hover, focus, or an open detail card freezes everything.
 - **Present mode** — full-screen, no interface, just the flow, a restart button,
   and an × (or Esc). Entering it restarts the flow from the beginning.
-- **Panels** — the diagram flips to a rendered reading view: the flow itself
-  followed by every step's detail. The editor holds the markdown, the mermaid on
-  its own (edits splice back without touching frontmatter or detail sections),
-  and the generated export.
+- **Three views of the diagram** — the styled flow, a plain baseline in
+  mermaid's default look, and a rendered reading view (the flow followed by every
+  step's detail). The editor below holds the markdown, the mermaid on its own
+  (edits splice back without touching frontmatter or detail sections), and the
+  generated export.
+- **Walkthrough follows the view** — the active step is centred, and scrolling
+  the canvas by hand moves the highlight to whatever you scrolled to and holds
+  the auto-advance while you look around.
 - **Export** — one inline HTML file that re-runs layout on load, so the same
   file is correct on a 4K marquee and on a phone.
 

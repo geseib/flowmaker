@@ -44,6 +44,10 @@ export function createAnimator(root, model, opts = {}) {
   const order = walkOrder(model);
   let pulseLayer = null;
   let timer = null;
+  // When someone scrolls the canvas by hand the highlight follows them, and the
+  // auto-advance holds off for a moment so the view is not yanked away while
+  // they are still looking.
+  let deferUntil = 0;
 
   function clearPulses() {
     pulseLayer?.remove();
@@ -78,7 +82,7 @@ export function createAnimator(root, model, opts = {}) {
     svg.appendChild(pulseLayer);
   }
 
-  function paintWalk() {
+  function paintWalk({ follow = true } = {}) {
     const activeId = order[state.activeIndex];
     for (const el of root.querySelectorAll('.fm-node')) {
       const isActive = el.dataset.nodeId === activeId;
@@ -90,7 +94,9 @@ export function createAnimator(root, model, opts = {}) {
       el.style.opacity = state.mode === 'walkthrough' && !touching ? '.45' : '';
     }
     if (activeId && opts.onStep) opts.onStep(activeId, state.activeIndex, order.length);
-    if (activeId && opts.scrollTo) opts.scrollTo(model.nodes.find((n) => n.id === activeId));
+    if (follow && activeId && opts.scrollTo) {
+      opts.scrollTo(model.nodes.find((n) => n.id === activeId));
+    }
   }
 
   function clearWalkPaint() {
@@ -103,6 +109,7 @@ export function createAnimator(root, model, opts = {}) {
 
   function tick() {
     if (state.paused || state.mode !== 'walkthrough' || !state.playing) return;
+    if (nowMs() < deferUntil) return;
     state.activeIndex = (state.activeIndex + 1) % Math.max(1, order.length);
     paintWalk();
   }
@@ -163,6 +170,18 @@ export function createAnimator(root, model, opts = {}) {
       state.paused = false;
       root.dataset.paused = 'false';
       startTimer();
+    },
+    // Move the walkthrough to a step without restarting it, so scrolling the
+    // canvas by hand can carry the highlight along with the view.
+    goToId(id) {
+      const i = order.indexOf(id);
+      if (i === -1 || i === state.activeIndex) return false;
+      state.activeIndex = i;
+      paintWalk({ follow: false });
+      return true;
+    },
+    deferAdvance(ms) {
+      deferUntil = nowMs() + ms;
     },
     restart() {
       state.activeIndex = state.mode === 'walkthrough' ? 0 : -1;

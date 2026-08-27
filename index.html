@@ -24,6 +24,14 @@
   .fm-panel{display:flex;flex-direction:column;min-height:0;border-top:1px solid var(--border,#ddd)}
   .fm-panel-tabs{display:flex;gap:.4rem;align-items:center;padding:.45rem .7rem;border-bottom:1px solid var(--border,#ddd);flex-wrap:wrap;flex:0 0 auto}
   .fm-zoom{margin-left:auto;display:flex;gap:.3rem;align-items:center;font-size:.82rem}
+  /* Three stacked views in the diagram panel; only the selected one shows. */
+  .fm-views{position:relative;flex:1 1 auto;min-height:0;display:flex}
+  .fm-view{display:none;flex:1 1 auto;min-width:0;min-height:0}
+  .fm-views[data-view="flow"] .fm-view[data-view="flow"]{display:flex}
+  .fm-views[data-view="mermaid"] .fm-view[data-view="mermaid"]{display:flex}
+  .fm-views[data-view="document"] .fm-view[data-view="document"]{display:block}
+  .fm-mermaid-view{overflow:auto;background:#fff;padding:1rem;align-items:flex-start}
+  .fm-mermaid-view svg{display:block;max-width:none;height:auto}
   .fm-flip{position:relative;flex:1 1 auto;min-height:0;perspective:1800px}
   .fm-face{position:absolute;inset:0;backface-visibility:hidden;transition:transform .55s cubic-bezier(.2,.8,.2,1);overflow:hidden;display:flex}
   .fm-face-front{transform:rotateX(0)}

@@ -36,6 +36,27 @@ const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 const TIMER_INTERVAL_MS = 33;
 // How long after letting go of the canvas the crawl picks up again.
 const DRAG_RESUME_MS = 1400;
+// A window after the app scrolls the view in which scroll events are ignored,
+// so following a step is not mistaken for the user scrolling.
+const PROGRAMMATIC_SCROLL_MS = 700;
+
+// Which step sits nearest the middle of the viewport. Pure so the choice can be
+// tested without a browser: scroll events are not dispatched at all on a page
+// the browser is not rendering, so this cannot be exercised end to end there.
+export function nearestNodeId(nodes, view) {
+  const { scrollLeft = 0, scrollTop = 0, clientWidth = 0, clientHeight = 0,
+    stageLeft = 0, stageTop = 0, zoom = 1, horizontal = true } = view ?? {};
+  const cx = scrollLeft + clientWidth / 2 - stageLeft;
+  const cy = scrollTop + clientHeight / 2 - stageTop;
+  let best = null;
+  for (const n of nodes ?? []) {
+    const dx = (n.x + n.w / 2) * zoom - cx;
+    const dy = (n.y + n.h / 2) * zoom - cy;
+    const d = horizontal ? Math.abs(dx) : Math.abs(dy);
+    if (best === null || d < best.d) best = { id: n.id, d };
+  }
+  return best?.id ?? null;
+}
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
 // One step of the auto-scroll crawl, as a pure function of the current state.
@@ -91,6 +112,7 @@ export function shouldReflowVertical(viewportWidth, bounds) {
 
 export function createCanvas(container, model, opts = {}) {
   const stage = container.querySelector('.fm-stage') ?? container.firstElementChild;
+  const horizontalFlow = model.direction !== 'TD' && model.direction !== 'BT';
   let zoom = opts.zoom ?? 1;
   let panning = false;
   let origin = { x: 0, y: 0, left: 0, top: 0 };
@@ -252,6 +274,16 @@ export function createCanvas(container, model, opts = {}) {
     syncScrollPause();
   }
 
+  // A scroll the app caused must not be mistaken for the user taking the wheel.
+  let programmaticUntil = 0;
+  const onScroll = () => {
+    if (nowMs() < programmaticUntil) return;
+    if (panning || pausedBy.drag) { opts.onUserScroll?.(); return; }
+    // The crawl writes scrollLeft itself, so only report a scroll it did not cause.
+    if (scrollWanted && !scrollPaused) return;
+    opts.onUserScroll?.();
+  };
+
   const onResize = () => {
     if (!autoFitDone && container.clientWidth > 1 && container.clientHeight > 1) {
       autoFitDone = true;
@@ -268,6 +300,7 @@ export function createCanvas(container, model, opts = {}) {
   container.addEventListener('pointerup', onPointerUp);
   container.addEventListener('pointercancel', onPointerUp);
   container.addEventListener('wheel', onWheel, { passive: false });
+  container.addEventListener('scroll', onScroll, { passive: true });
   const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null;
   if (resizeObserver) resizeObserver.observe(container);
   else if (opts.autoFit !== false) { autoFitDone = true; fitDefault(); }
@@ -307,11 +340,32 @@ export function createCanvas(container, model, opts = {}) {
       apply();
     },
     getZoom: () => zoom,
-    scrollToNode(node) {
+    // Centre a step in the viewport. The stage is centred inside the canvas by
+    // auto margins, so its own offset has to be added or the target lands short
+    // and the active step drifts off screen.
+    scrollToNode(node, { instant = false } = {}) {
       if (!node) return;
-      const targetLeft = node.x * zoom - container.clientWidth / 2 + (node.w * zoom) / 2;
-      const targetTop = node.y * zoom - container.clientHeight / 2 + (node.h * zoom) / 2;
-      container.scrollTo({ left: Math.max(0, targetLeft), top: Math.max(0, targetTop), behavior: 'smooth' });
+      const left = stage.offsetLeft + node.x * zoom - container.clientWidth / 2 + (node.w * zoom) / 2;
+      const top = stage.offsetTop + node.y * zoom - container.clientHeight / 2 + (node.h * zoom) / 2;
+      programmaticUntil = nowMs() + PROGRAMMATIC_SCROLL_MS;
+      container.scrollTo({
+        left: Math.max(0, left),
+        top: Math.max(0, top),
+        behavior: instant ? 'auto' : 'smooth',
+      });
+    },
+    // Which step is nearest the middle of the viewport right now.
+    nearestNodeToCentre() {
+      return nearestNodeId(model.nodes, {
+        scrollLeft: container.scrollLeft,
+        scrollTop: container.scrollTop,
+        clientWidth: container.clientWidth,
+        clientHeight: container.clientHeight,
+        stageLeft: stage.offsetLeft,
+        stageTop: stage.offsetTop,
+        zoom,
+        horizontal: horizontalFlow,
+      });
     },
     // Hover, focus, and an open modal all freeze the crawl, matching the
     // animation pause so the whole diagram stops together.
@@ -344,6 +398,7 @@ export function createCanvas(container, model, opts = {}) {
       container.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('pointercancel', onPointerUp);
       container.removeEventListener('wheel', onWheel);
+      container.removeEventListener('scroll', onScroll);
       resizeObserver?.disconnect();
     },
   };

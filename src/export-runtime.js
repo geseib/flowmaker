@@ -35,7 +35,17 @@ export function bootExport() {
     details: data.details,
   });
 
-  const canvas = createCanvas(host, model, {});
+  let runtimeRef = null;
+  const canvas = createCanvas(host, model, {
+    // Scrolling by hand during a walkthrough carries the highlight along and
+    // holds the auto-advance while the viewer looks around.
+    onUserScroll: () => {
+      if (runtimeRef?.getMode?.() !== 'walkthrough') return;
+      const id = canvas.nearestNodeToCentre();
+      if (id) runtimeRef.goToId(id);
+      runtimeRef.deferAdvance(2500);
+    },
+  });
   const runtime = attachRuntime(host, {
     details: data.details,
     model,

@@ -293,7 +293,10 @@ export function layout(graph, opts = {}) {
   let backIndex = 0;
   let wrapIndex = 0;
   const tagRadius = spec.fontSize * 0.78;
-  const wrapLane = nodeBottom + gutter * 0.45 + tagRadius;
+  // Tags hang just under their own node rather than down in the gutter with the
+  // loop lines. Parked at the bottom of the canvas they fall outside the view at
+  // 1:1 on a short panel, which makes the whole connector easy to miss.
+  const tagDrop = tagRadius * 1.5;
 
   const edges = (graph.edges ?? []).map((e) => {
     const from = nodeById.get(e.from);
@@ -320,8 +323,8 @@ export function layout(graph, opts = {}) {
       // back across everything in between.
       const tag = WRAP_TAGS[wrapIndex % WRAP_TAGS.length];
       wrapIndex += 1;
-      const out = { x: a.bottom.x, y: wrapLane };
-      const into = { x: b.bottom.x, y: wrapLane };
+      const out = { x: a.bottom.x, y: from.y + from.h + tagDrop };
+      const into = { x: b.bottom.x, y: to.y + to.h + tagDrop };
       return {
         ...e,
         isBackEdge: true,
@@ -364,7 +367,7 @@ export function layout(graph, opts = {}) {
   });
 
   const backDepth = backIndex > 0 ? gutter * 0.5 + backIndex * (spec.laneGap * 0.8) + spec.laneGap : 0;
-  const wrapDepth = wrapIndex > 0 ? gutter * 0.45 + tagRadius * 3.4 + spec.laneGap : 0;
+  const wrapDepth = wrapIndex > 0 ? tagRadius * 2.6 + spec.laneGap * 0.5 : 0;
   const selfDepth = edges.some((e) => e.from === e.to) ? spec.nodeH : 0;
 
   return {

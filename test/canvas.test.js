@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  fitScale, shouldReflowVertical, advanceScroll,
+  fitScale, shouldReflowVertical, advanceScroll, nearestNodeId,
   CANVAS_CSS, MIN_ZOOM, MAX_ZOOM, NARROW_BREAKPOINT,
 } from '../src/canvas.js';
 
@@ -123,4 +123,39 @@ test('the crawl ping-pongs rather than running away', () => {
     assert.ok(pos >= 0 && pos <= 500, `escaped the range at ${pos}`);
   }
   assert.ok(reversals >= 2, `expected several reversals, saw ${reversals}`);
+});
+
+// --- which step is nearest the middle of the view --------------------------
+
+const row = (n) => Array.from({ length: n }, (_, i) => ({ id: `N${i}`, x: i * 200, y: 0, w: 100, h: 60 }));
+
+test('picks the step under the middle of the viewport', () => {
+  // Viewport 400 wide scrolled to 800: its centre is at 1000, which is N5.
+  assert.equal(nearestNodeId(row(8), { scrollLeft: 800, clientWidth: 400 }), 'N5');
+});
+
+test('accounts for the stage offset when the diagram is centred', () => {
+  // The stage sits 150px in, so the same scroll lands on an earlier step.
+  const without = nearestNodeId(row(8), { scrollLeft: 800, clientWidth: 400 });
+  const with150 = nearestNodeId(row(8), { scrollLeft: 800, clientWidth: 400, stageLeft: 150 });
+  assert.notEqual(without, with150, 'ignoring the stage offset picks the wrong step');
+  assert.equal(with150, 'N4');
+});
+
+test('accounts for zoom', () => {
+  // At half scale the viewport centre (600) falls between the scaled centres of
+  // N5 (525) and N6 (625); N6 is nearer.
+  assert.equal(nearestNodeId(row(8), { scrollLeft: 400, clientWidth: 400, zoom: 0.5 }), 'N6');
+  // The same scroll at full scale is a completely different step.
+  assert.equal(nearestNodeId(row(8), { scrollLeft: 400, clientWidth: 400 }), 'N3');
+});
+
+test('measures along the flow axis for a vertical diagram', () => {
+  const column = Array.from({ length: 6 }, (_, i) => ({ id: `N${i}`, x: 0, y: i * 150, w: 100, h: 60 }));
+  assert.equal(nearestNodeId(column, { scrollTop: 300, clientHeight: 300, horizontal: false }), 'N3');
+});
+
+test('an empty diagram has no nearest step', () => {
+  assert.equal(nearestNodeId([], { scrollLeft: 0, clientWidth: 400 }), null);
+  assert.equal(nearestNodeId(undefined, undefined), null);
 });

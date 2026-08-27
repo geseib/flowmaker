@@ -9,9 +9,12 @@ import { showIconsFor } from './icons.js';
 import { buildExport } from './export.js';
 import { resolveDocument } from './app.js';
 import { documentToHtml } from './md.js';
+import { renderMermaidPreview } from './mermaid-preview.js';
 import { replaceMermaidBlock } from './parse.js';
 
 const STORE_KEY = 'flowmaker.prefs.v1';
+// How long the walkthrough waits after someone scrolls the canvas by hand.
+const WALK_SCROLL_HOLD_MS = 2500;
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
 const SAMPLE_FILES = [
@@ -125,8 +128,9 @@ const STUDIO_HTML = `
     <main class="fm-main">
       <section class="fm-panel">
         <div class="fm-panel-tabs">
-          <button type="button" data-flip="fm-canvas-card" data-face="front" aria-pressed="true">Beautiful Flow</button>
-          <button type="button" data-flip="fm-canvas-card" data-face="back" aria-pressed="false">Document</button>
+          <button type="button" data-view="flow" aria-pressed="true">Beautiful Flow</button>
+          <button type="button" data-view="mermaid" aria-pressed="false">Mermaid</button>
+          <button type="button" data-view="document" aria-pressed="false">Document</button>
           <div class="fm-zoom">
             <button type="button" data-action="zoom-out" aria-label="Zoom out">&minus;</button>
             <span id="fm-zoom-label">100%</span>
@@ -136,11 +140,12 @@ const STUDIO_HTML = `
             <button type="button" data-action="actual">1:1</button>
           </div>
         </div>
-        <div class="fm-flip" id="fm-canvas-card" data-face="front">
-          <div class="fm-face fm-face-front">
+        <div class="fm-views" id="fm-views" data-view="flow">
+          <div class="fm-view" data-view="flow">
             <div class="fm-canvas" id="fm-canvas"><div class="fm-stage" id="fm-stage"></div></div>
           </div>
-          <div class="fm-face fm-face-back"><article id="fm-doc-out" class="fm-doc"></article></div>
+          <div class="fm-view fm-mermaid-view" data-view="mermaid" id="fm-mermaid-view"></div>
+          <article class="fm-view fm-doc" data-view="document" id="fm-doc-out"></article>
         </div>
       </section>
 
@@ -202,6 +207,8 @@ export function mountStudio(root) {
   const docOut = el('#fm-doc-out');
   const mermaidEdit = el('#fm-mermaid-edit');
   const panes = el('#fm-panes');
+  const views = el('#fm-views');
+  const mermaidView = el('#fm-mermaid-view');
   const warnStrip = el('#fm-warnings');
   const fmRoot = root.querySelector('.fm-root');
 
@@ -226,7 +233,7 @@ export function mountStudio(root) {
 
   function setAutoScroll(on) {
     state.autoScroll = on;
-    if (on) state.canvas?.startAutoScroll();
+    if (on && crawlAllowed()) state.canvas?.startAutoScroll();
     else state.canvas?.stopAutoScroll();
     for (const b of root.querySelectorAll('[data-action="toggle-scroll"]')) {
       b.setAttribute('aria-pressed', String(on));
@@ -284,6 +291,15 @@ export function mountStudio(root) {
 
     state.canvas = createCanvas(canvasHost, resolved.model, {
       onZoom: (z) => { el('#fm-zoom-label').textContent = `${Math.round(z * 100)}%`; },
+      // Scrolling the canvas by hand during a walkthrough moves the highlight to
+      // whichever step you have scrolled to, rather than fighting you.
+      onUserScroll: () => {
+        if (state.animationMode !== 'walkthrough') return;
+        const id = state.canvas?.nearestNodeToCentre();
+        if (id) state.runtime?.goToId(id);
+        // Hold the auto-advance while they are still scrolling.
+        state.runtime?.deferAdvance(WALK_SCROLL_HOLD_MS);
+      },
     });
     state.runtime = attachRuntime(canvasHost, {
       details: resolved.details,
@@ -298,6 +314,8 @@ export function mountStudio(root) {
 
     // The reading view leads with the same diagram, then the step details.
     docOut.innerHTML = documentToHtml({ ...resolved, svg });
+    // The plain baseline, in mermaid's default look.
+    mermaidView.innerHTML = renderMermaidPreview(resolved.model);
     // Keep the mermaid editor in step, unless the user is typing in it.
     if (doc.activeElement !== mermaidEdit) mermaidEdit.value = resolved.mermaidSrc;
     refreshExport();
@@ -326,6 +344,13 @@ export function mountStudio(root) {
   // scrolls itself to each active step, so a second scroller would fight it.
   function scrollDefaultFor(mode) {
     return mode === 'pulse';
+  }
+
+  // In a walkthrough the highlight drives the view. Letting the crawl run at the
+  // same time means it overwrites scrollLeft every tick, cancelling the smooth
+  // scroll to each step, so the active step never reaches the middle.
+  function crawlAllowed() {
+    return state.animationMode !== 'walkthrough';
   }
 
   function setPresenting(on) {
@@ -372,6 +397,14 @@ export function mountStudio(root) {
     editor.value = state.source;
     render();
   }));
+
+  function showView(name) {
+    views.dataset.view = name;
+    for (const b of root.querySelectorAll('button[data-view]')) {
+      b.setAttribute('aria-pressed', String(b.dataset.view === name));
+    }
+    if (name === 'flow') requestAnimationFrame(() => state.canvas?.fitDefault());
+  }
 
   function showPane(name) {
     panes.dataset.pane = name;
@@ -440,6 +473,11 @@ export function mountStudio(root) {
       }
       return;
     }
+    const viewBtn = e.target.closest('button[data-view]');
+    if (viewBtn) {
+      showView(viewBtn.dataset.view);
+      return;
+    }
     const paneBtn = e.target.closest('button[data-pane]');
     if (paneBtn) {
       showPane(paneBtn.dataset.pane);
@@ -498,6 +536,7 @@ export function mountStudio(root) {
   editor.value = state.source;
   render();
   showPane('markdown');
+  showView('flow');
   const api = { render, state };
   // Handy for debugging in the console and for driving the app from tests.
   if (typeof window !== 'undefined') window.__flowmaker = api;
