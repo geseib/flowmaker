@@ -57,8 +57,10 @@
   #app[data-present="true"] .fm-body{grid-template-columns:1fr;grid-template-rows:1fr}
   #app[data-present="true"] .fm-main{grid-template-rows:1fr}
   #app[data-present="true"] .fm-panel{border-top:0}
-  .fm-present-bar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:1rem;padding:.7rem 1.1rem;opacity:0;transition:opacity .25s ease;pointer-events:none}
-  .fm-present-bar:hover,.fm-present-bar:focus-within,#app[data-present="true"]:hover .fm-present-bar{opacity:1;pointer-events:auto}
+  .fm-present-bar{display:none}
+  .fm-present-bar[hidden]{display:none}
+  #app[data-present="true"] .fm-present-bar:not([hidden]){position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:1rem;padding:.7rem 1.1rem;opacity:0;transition:opacity .25s ease;pointer-events:none}
+  #app[data-present="true"] .fm-present-bar:hover,#app[data-present="true"] .fm-present-bar:focus-within,#app[data-present="true"]:hover .fm-present-bar{opacity:1;pointer-events:auto}
   .fm-present-title{font-weight:800;font-size:1.05rem;letter-spacing:-.01em;color:var(--ink,#111);text-shadow:0 1px 12px var(--ground,#fff)}
   .fm-present-actions{margin-left:auto;display:flex;gap:.4rem;align-items:center}
   .fm-present-actions button{font:inherit;font-size:.8rem;padding:.3em .75em;border-radius:999px;border:1px solid var(--border,#ddd);background:var(--surface-2,#f6f6f6);color:var(--ink,#111);cursor:pointer}

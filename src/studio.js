@@ -351,7 +351,9 @@ export function mountStudio(root) {
   async function loadText(text) {
     state.source = text;
     editor.value = text;
-    state.overrides = {};
+    // Deliberately keep state.overrides. Once someone has picked a style,
+    // palette, or density, that choice survives switching documents; the new
+    // file's frontmatter only applies to whatever they have not chosen.
     render();
   }
 

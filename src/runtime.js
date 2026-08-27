@@ -53,6 +53,24 @@ export const RUNTIME_CSS = `
 `.trim();
 
 const FOCUSABLE = 'a[href], button, [tabindex]:not([tabindex="-1"])';
+
+// The interaction state that decides whether the diagram moves and whether a
+// tooltip is showing. Kept as pure functions of an explicit state object rather
+// than as incremented counters, because a counter silently goes out of balance
+// the moment one pointerout is missed and the diagram then stays frozen.
+export function shouldPauseMotion(s) {
+  return s.hoveredId !== null || s.focusedId !== null || s.modalOpen || s.externalPause;
+}
+
+// Hover always shows a tooltip. Focus shows one only while someone is actually
+// navigating by keyboard: focus restored programmatically after closing a card
+// must not resurrect a tooltip the pointer is nowhere near.
+export function tooltipTargetId(s) {
+  if (s.modalOpen) return null;
+  if (s.hoveredId !== null) return s.hoveredId;
+  if (s.focusedId !== null && s.keyboardNav && !s.suppressFocusTooltip) return s.focusedId;
+  return null;
+}
 const cssEscape = (s) => (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&'));
 
 export function attachRuntime(root, config = {}) {
@@ -81,7 +99,19 @@ export function attachRuntime(root, config = {}) {
   const modal = backdrop.querySelector('.fm-modal');
   const closeBtn = backdrop.querySelector('.fm-modal-close');
   let lastFocus = null;
-  let hoverPauses = 0;
+
+  // Motion state is derived from these three, never from a counter. A counter
+  // gets out of balance the moment one pointerout is missed (pointer capture,
+  // the cursor leaving the window, focus restored under a modal) and the
+  // diagram stays frozen forever.
+  const ui = {
+    hoveredId: null,
+    focusedId: null,
+    modalOpen: false,
+    externalPause: false,
+    keyboardNav: false,
+    suppressFocusTooltip: false,
+  };
 
   const animator = createAnimator(root, model, {
     mode: config.animationMode ?? 'pulse',
@@ -109,26 +139,46 @@ export function attachRuntime(root, config = {}) {
     tooltip.dataset.open = 'false';
   }
 
-  // Everything that freezes motion goes through these two, so the pulse, the
-  // walkthrough, and the auto-scroll always stop and start together.
+  // The pulse, the walkthrough, and the auto-scroll always stop and start
+  // together, and only ever as a function of the state above.
+  let motionPaused = false;
+
+  function syncMotion() {
+    const shouldPause = shouldPauseMotion(ui);
+    if (shouldPause === motionPaused) return;
+    motionPaused = shouldPause;
+    if (shouldPause) {
+      animator.pause();
+      config.onPause?.();
+    } else {
+      animator.resume();
+      config.onResume?.();
+    }
+  }
+
+  function syncTooltip() {
+    const id = tooltipTargetId(ui);
+    const el = id === null ? null : elFor(id);
+    if (el) showTooltip(el);
+    else hideTooltip();
+  }
+
+  function sync() {
+    syncMotion();
+    syncTooltip();
+  }
+
+  // The public pause/resume, for callers that want to freeze the diagram for
+  // their own reasons. Kept separate from hover and modal state so neither can
+  // clobber the other.
   function pauseAll() {
-    animator.pause();
-    config.onPause?.();
+    ui.externalPause = true;
+    sync();
   }
 
   function resumeAll() {
-    animator.resume();
-    config.onResume?.();
-  }
-
-  function pauseForHover() {
-    hoverPauses += 1;
-    if (hoverPauses === 1) pauseAll();
-  }
-
-  function resumeAfterHover() {
-    hoverPauses = Math.max(0, hoverPauses - 1);
-    if (hoverPauses === 0 && backdrop.dataset.open !== 'true') resumeAll();
+    ui.externalPause = false;
+    sync();
   }
 
   function openModal(id) {
@@ -142,17 +192,22 @@ export function attachRuntime(root, config = {}) {
     lede.hidden = !detail.tooltip;
     backdrop.querySelector('.fm-modal-body').innerHTML = mdToHtml(detail.bodyMd);
     backdrop.dataset.open = 'true';
-    pauseAll();
-    hideTooltip();
+    ui.modalOpen = true;
+    sync();
     closeBtn.focus();
   }
 
   function closeModal() {
     if (backdrop.dataset.open !== 'true') return;
     backdrop.dataset.open = 'false';
-    if (hoverPauses === 0) resumeAll();
+    ui.modalOpen = false;
+
+    // Focus goes back to the node for keyboard users, but that restore must not
+    // resurrect the tooltip: the pointer may be nowhere near the diagram.
+    ui.suppressFocusTooltip = true;
     if (lastFocus?.focus) lastFocus.focus();
     lastFocus = null;
+    sync();
   }
 
   // Arrow keys walk the graph: forward along outgoing edges, back along incoming.
@@ -202,56 +257,85 @@ export function attachRuntime(root, config = {}) {
       event.preventDefault();
       const next = elFor(step(id, forwardKeys.includes(event.key)));
       if (next) {
+        ui.keyboardNav = true;
+        ui.suppressFocusTooltip = false;
         next.focus();
-        showTooltip(next);
+        sync();
       }
     }
   }
 
   const onOver = (e) => {
     const n = e.target.closest?.('.fm-node');
-    if (n) {
-      showTooltip(n);
-      pauseForHover();
-    }
+    if (!n) return;
+    ui.hoveredId = n.dataset.nodeId;
+    sync();
   };
+
   const onOut = (e) => {
     const n = e.target.closest?.('.fm-node');
-    if (n) {
-      hideTooltip();
-      resumeAfterHover();
-    }
+    if (!n || n.dataset.nodeId !== ui.hoveredId) return;
+    // relatedTarget is where the pointer went; staying inside the same node
+    // (crossing from its shape onto its label) is not a real exit.
+    if (e.relatedTarget && n.contains(e.relatedTarget)) return;
+    ui.hoveredId = null;
+    sync();
   };
+
+  // Safety net: if the pointer leaves the canvas or the window entirely, some
+  // pointerout events never arrive, and without this the crawl stays frozen.
+  const onLeave = () => {
+    if (ui.hoveredId === null) return;
+    ui.hoveredId = null;
+    sync();
+  };
+
   const onFocusIn = (e) => {
     const n = e.target.closest?.('.fm-node');
-    if (n) {
-      showTooltip(n);
-      pauseForHover();
-    }
+    if (!n) return;
+    ui.focusedId = n.dataset.nodeId;
+    sync();
   };
+
   const onFocusOut = (e) => {
     const n = e.target.closest?.('.fm-node');
-    if (n) {
-      hideTooltip();
-      resumeAfterHover();
+    if (!n || n.dataset.nodeId !== ui.focusedId) return;
+    ui.focusedId = null;
+    sync();
+  };
+
+  const onPointerDown = () => {
+    ui.keyboardNav = false;
+  };
+
+  const onNavKey = (e) => {
+    if (e.key === 'Tab') {
+      ui.keyboardNav = true;
+      ui.suppressFocusTooltip = false;
     }
   };
+
   const onClick = (e) => {
     const n = e.target.closest?.('.fm-node');
     if (n?.dataset.hasDetail === 'true') openModal(n.dataset.nodeId);
   };
+
   const onBackdrop = (e) => {
     if (e.target === backdrop) closeModal();
   };
 
   root.addEventListener('pointerover', onOver);
   root.addEventListener('pointerout', onOut);
+  root.addEventListener('pointerleave', onLeave);
   root.addEventListener('focusin', onFocusIn);
   root.addEventListener('focusout', onFocusOut);
   root.addEventListener('click', onClick);
   backdrop.addEventListener('click', onBackdrop);
   closeBtn.addEventListener('click', closeModal);
   doc.addEventListener('keydown', onKeyDown);
+  doc.addEventListener('keydown', onNavKey);
+  doc.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('blur', onLeave);
 
   return {
     animator,
@@ -261,8 +345,10 @@ export function attachRuntime(root, config = {}) {
     focusNode: (id) => {
       const el = elFor(id);
       if (el) {
+        ui.keyboardNav = true;
+        ui.suppressFocusTooltip = false;
         el.focus();
-        showTooltip(el);
+        sync();
       }
     },
     openModal,
@@ -271,12 +357,16 @@ export function attachRuntime(root, config = {}) {
       animator.destroy();
       root.removeEventListener('pointerover', onOver);
       root.removeEventListener('pointerout', onOut);
+      root.removeEventListener('pointerleave', onLeave);
       root.removeEventListener('focusin', onFocusIn);
       root.removeEventListener('focusout', onFocusOut);
       root.removeEventListener('click', onClick);
       backdrop.removeEventListener('click', onBackdrop);
       closeBtn.removeEventListener('click', closeModal);
       doc.removeEventListener('keydown', onKeyDown);
+      doc.removeEventListener('keydown', onNavKey);
+      doc.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('blur', onLeave);
       tooltip.remove();
       backdrop.remove();
     },
