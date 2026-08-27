@@ -105,12 +105,12 @@ studio reports any section that matches no node, and any node with no section.
   produces the full standalone page with controls.
 - **Playback speed** — 0.5x, 1x, and 2x beside the zoom controls, scaling the
   crawl, the walkthrough, and the pulse together.
-- **Auto-scroll loops** — the flow travels one way and wraps: it leaves one
-  edge and comes straight back in at the other, with no reverse and no jump.
-  Blank travel of exactly one viewport leads the flow, so the last pixel clears
-  the leading edge as the first arrives at the trailing one, and a longer gap
-  follows it carrying the document's title. The loop opens on that title rather
-  than making a viewer wait a full cycle to learn what they are looking at.
+- **Auto-scroll loops** — the flow travels one way and comes round again with
+  no reverse, no jump, and no dead time. The strip is flow, gap, title, gap,
+  followed by that strip's own opening repeated for one viewport: scrolling
+  exactly one strip length and resetting lands on identical pixels, so the wrap
+  is invisible without reserving any blank runway. The loop opens on the title,
+  positioned so the tail of the flow is not still showing behind it.
 - **Walkthrough follows the view** — the active step is centred, and scrolling
   the canvas by hand moves the highlight to whatever you scrolled to and holds
   the auto-advance while you look around.

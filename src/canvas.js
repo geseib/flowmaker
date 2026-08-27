@@ -29,10 +29,11 @@ export const CANVAS_CSS = `
 .fm-canvas[data-panning="true"] { cursor: grabbing; user-select: none; }
 .fm-stage { transform-origin: 0 0; will-change: transform; margin: auto; }
 /* Blank travel either side of the diagram, outside the transformed stage. */
-.fm-spacer { display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.fm-gap { pointer-events: none; }
+.fm-loop-repeat { display: flex; align-items: center; overflow: hidden; pointer-events: none; }
 /* The title rides in the stretch between the end of the flow and its return,
    so the loop has a beat instead of a void. */
-.fm-seam { text-align: center; max-width: 46ch; }
+.fm-seam { display: flex; flex-direction: column; justify-content: center; text-align: center; max-width: 46ch; pointer-events: none; }
 .fm-seam h2 {
   margin: 0; font-family: var(--font); color: var(--ink);
   font-size: 3.4rem; font-weight: 800; line-height: 1.05; letter-spacing: -.02em;
@@ -157,6 +158,8 @@ export function createCanvas(container, model, opts = {}) {
     stage.style.width = `${model.bounds.w * zoom}px`;
     stage.style.height = `${model.bounds.h * zoom}px`;
     container.dataset.reflow = shouldReflowVertical(container.clientWidth, model.bounds) ? 'vertical' : 'horizontal';
+    cloneNeedsSync = true;
+    if (cloneWrap) syncLoopRepeat();
     opts.onZoom?.(zoom);
   }
 
@@ -254,8 +257,10 @@ export function createCanvas(container, model, opts = {}) {
   let speedMult = Number.isFinite(opts.speed) && opts.speed > 0 ? opts.speed : 1;
   let scrollTimer = null;
   let seam = null;
-  let leadSpacer = null;
-  let trailSpacer = null;
+  let gapBefore = null;
+  let gapAfter = null;
+  let cloneWrap = null;
+  let cloneNeedsSync = true;
 
   const scrollAxis = () => (model.direction === 'TD' || model.direction === 'BT' ? 'top' : 'left');
 
@@ -280,17 +285,25 @@ export function createCanvas(container, model, opts = {}) {
   function seamStartPos() {
     if (!seam) return 0;
     if (scrollAxis() === 'left') {
-      return Math.max(0, seam.offsetLeft + seam.offsetWidth / 2 - container.clientWidth / 2);
+      const centred = seam.offsetLeft + seam.offsetWidth / 2 - container.clientWidth / 2;
+      // Centre the title, but never far enough back to show the flow's tail.
+      return Math.max(0, Math.max(stage.offsetLeft + stage.offsetWidth, centred));
     }
-    return Math.max(0, seam.offsetTop + seam.offsetHeight / 2 - container.clientHeight / 2);
+    const centred = seam.offsetTop + seam.offsetHeight / 2 - container.clientHeight / 2;
+    return Math.max(0, Math.max(stage.offsetTop + stage.offsetHeight, centred));
   }
 
+  // The loop is a strip: flow, gap, title, gap, then the strip's own opening
+  // repeated for one viewport. Scrolling exactly one strip length and resetting
+  // lands on identical pixels, so the wrap is invisible without reserving a
+  // viewport of blank runway at each end. That runway was dead time: nothing to
+  // look at between the title leaving and the flow coming back.
   function applyLoopPadding(on) {
     if (!on) {
-      leadSpacer?.remove();
-      trailSpacer?.remove();
-      leadSpacer = null;
-      trailSpacer = null;
+      for (const el of [gapBefore, seam, gapAfter, cloneWrap]) el?.remove();
+      gapBefore = null;
+      gapAfter = null;
+      cloneWrap = null;
       seam = null;
       stage.style.margin = '';
       container.style.flexDirection = '';
@@ -300,55 +313,59 @@ export function createCanvas(container, model, opts = {}) {
     const axis = scrollAxis();
     const need = axis === 'left' ? container.clientWidth : container.clientHeight;
     if (need <= 0) return;
-    const gap = seamGap();
 
-    if (!leadSpacer) {
+    if (!seam) {
       const doc = container.ownerDocument;
-      leadSpacer = doc.createElement('div');
-      leadSpacer.className = 'fm-spacer';
-      leadSpacer.setAttribute('aria-hidden', 'true');
-      trailSpacer = doc.createElement('div');
-      trailSpacer.className = 'fm-spacer fm-spacer-trail';
-      trailSpacer.setAttribute('aria-hidden', 'true');
-
-      if (opts.seamTitle || opts.seamSubtitle) {
-        seam = doc.createElement('div');
-        seam.className = 'fm-seam';
-        const h = doc.createElement('h2');
-        h.textContent = opts.seamTitle ?? '';
-        seam.appendChild(h);
-        if (opts.seamSubtitle) {
-          const sub = doc.createElement('p');
-          sub.textContent = opts.seamSubtitle;
-          seam.appendChild(sub);
-        }
-        trailSpacer.appendChild(seam);
+      seam = doc.createElement('div');
+      seam.className = 'fm-seam';
+      const heading = doc.createElement('h2');
+      heading.textContent = opts.seamTitle ?? '';
+      seam.appendChild(heading);
+      if (opts.seamSubtitle) {
+        const sub = doc.createElement('p');
+        sub.textContent = opts.seamSubtitle;
+        seam.appendChild(sub);
       }
-
-      container.insertBefore(leadSpacer, stage);
-      stage.after(trailSpacer);
+      gapBefore = doc.createElement('div');
+      gapBefore.className = 'fm-gap';
+      gapAfter = doc.createElement('div');
+      gapAfter.className = 'fm-gap';
+      cloneWrap = doc.createElement('div');
+      cloneWrap.className = 'fm-loop-repeat';
+      cloneWrap.setAttribute('aria-hidden', 'true');
+      stage.after(gapBefore, seam, gapAfter, cloneWrap);
+      cloneNeedsSync = true;
     }
 
-    // Auto margins along the flow axis would hand the spacers' room back to the
-    // stage, but the cross axis still needs them: that is what centres the
-    // diagram in the panel rather than pinning it to the top.
+    const gap = seamGap();
+    gapBefore.style.flex = `0 0 ${gap}px`;
+    gapAfter.style.flex = `0 0 ${gap}px`;
+    cloneWrap.style.flex = `0 0 ${need}px`;
+
+    // Auto margins along the flow axis would steal the strip's room; the cross
+    // axis keeps them, which is what centres the diagram in the panel.
     stage.style.margin = axis === 'left' ? 'auto 0' : '0 auto';
     container.style.flexDirection = axis === 'left' ? 'row' : 'column';
-    const previous = parseFloat(leadSpacer.style.flexBasis) || 0;
-    if (Math.abs(previous - need) < 1) return;
+    if (cloneNeedsSync) syncLoopRepeat();
+  }
 
-    leadSpacer.style.flex = `0 0 ${need}px`;
-    // The trailing side is sized by its contents: a small gap, the title, then
-    // one viewport of run-off so the wrap lands on a blank frame. Letting it
-    // size itself keeps the gap small however long the title is.
-    trailSpacer.style.flex = '0 0 auto';
-    if (axis === 'left') {
-      trailSpacer.style.padding = `0 ${need}px 0 ${gap}px`;
-    } else {
-      trailSpacer.style.padding = `${gap}px 0 ${need}px 0`;
+  // The repeat is a copy of the strip's opening, clipped to one viewport, so the
+  // pixels either side of the reset match. Rebuilt when the diagram or zoom
+  // changes.
+  function syncLoopRepeat() {
+    if (!cloneWrap || !seam || !gapBefore) return;
+    cloneNeedsSync = false;
+    const stageCopy = stage.cloneNode(true);
+    stageCopy.removeAttribute('id');
+    stageCopy.style.margin = '0';
+    for (const el of stageCopy.querySelectorAll('[tabindex],[id]')) {
+      el.removeAttribute('tabindex');
+      el.removeAttribute('id');
     }
-    // Shift with it, so the diagram does not jump when the spacing changes.
-    scrollPos += need - previous;
+    const gapCopy = gapBefore.cloneNode(true);
+    const seamCopy = seam.cloneNode(true);
+    for (const el of [stageCopy, gapCopy, seamCopy]) el.setAttribute('aria-hidden', 'true');
+    cloneWrap.replaceChildren(stageCopy, gapCopy, seamCopy);
   }
 
 
