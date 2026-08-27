@@ -32,6 +32,7 @@ export default {
 .fm-node-rail { display: none; }
 .fm-node[data-has-detail="true"] { cursor: pointer; }
 .fm-node:hover .fm-node-shape, .fm-node:focus-visible .fm-node-shape { stroke-width: calc(var(--stroke) * 1.7); filter: drop-shadow(0 0 calc(var(--stroke) * 5) var(--c1)); }
+.fm-node:focus { outline: none; }
 .fm-node:focus-visible { outline: none; }
 .fm-node[data-dimmed="true"] { opacity: .55; }
 .fm-node[data-active="true"] .fm-node-shape { stroke: var(--c3); stroke-width: calc(var(--stroke) * 2); filter: drop-shadow(0 0 calc(var(--stroke) * 7) var(--c3)); }

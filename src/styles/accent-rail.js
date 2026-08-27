@@ -38,6 +38,7 @@ export default {
 
 .fm-node[data-has-detail="true"] { cursor: pointer; }
 .fm-node:hover .fm-node-shape, .fm-node:focus-visible .fm-node-shape { filter: drop-shadow(0 2px 4px rgb(0 0 0 / .08)) drop-shadow(0 14px 32px rgb(0 0 0 / .14)); }
+.fm-node:focus { outline: none; }
 .fm-node:focus-visible { outline: none; }
 .fm-node:focus-visible .fm-node-shape { stroke: var(--c2); stroke-width: calc(var(--stroke) * 1.2); }
 .fm-node[data-dimmed="true"] { opacity: .55; }

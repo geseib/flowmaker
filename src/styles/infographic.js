@@ -46,6 +46,7 @@ export default {
 
 .fm-node[data-has-detail="true"] { cursor: pointer; }
 .fm-node:hover .fm-node-shape, .fm-node:focus-visible .fm-node-shape { stroke-width: calc(var(--stroke) * 2.4); }
+.fm-node:focus { outline: none; }
 .fm-node:focus-visible { outline: none; }
 .fm-node[data-dimmed="true"] { opacity: .55; }
 .fm-node[data-active="true"] .fm-node-shape { stroke: var(--c3); stroke-width: calc(var(--stroke) * 2.6); filter: drop-shadow(0 6px 20px color-mix(in oklab, var(--c3) 40%, transparent)); }

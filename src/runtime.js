@@ -72,6 +72,14 @@ export function shouldPauseMotion(s) {
 // Hover always shows a tooltip. Focus shows one only while someone is actually
 // navigating by keyboard: focus restored programmatically after closing a card
 // must not resurrect a tooltip the pointer is nowhere near.
+// Focus is only worth restoring to the node for someone who was navigating by
+// keyboard and needs to carry on from where they were. Handing focus back after
+// a mouse click just leaves a focus ring sitting on the node with nothing to
+// explain it.
+export function shouldRestoreFocus(s) {
+  return s.keyboardNav === true;
+}
+
 export function tooltipTargetId(s) {
   if (s.modalOpen) return null;
   if (s.hoveredId !== null) return s.hoveredId;
@@ -212,7 +220,14 @@ export function attachRuntime(root, config = {}) {
     // Focus goes back to the node for keyboard users, but that restore must not
     // resurrect the tooltip: the pointer may be nowhere near the diagram.
     ui.suppressFocusTooltip = true;
-    if (lastFocus?.focus) lastFocus.focus();
+    if (shouldRestoreFocus(ui) && lastFocus?.focus) {
+      lastFocus.focus();
+    } else {
+      // Move focus off the card before it is hidden, without parking a focus
+      // ring on the node the pointer has already left.
+      doc.activeElement?.blur?.();
+      ui.focusedId = null;
+    }
     lastFocus = null;
     sync();
   }

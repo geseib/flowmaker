@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldPauseMotion, tooltipTargetId } from '../src/runtime.js';
+import { shouldPauseMotion, tooltipTargetId, shouldRestoreFocus } from '../src/runtime.js';
 
 // The interaction state that drives pausing and the tooltip. Two reported bugs
 // came from this logic, so it is pinned here rather than only exercised through
@@ -97,6 +97,16 @@ test('the full hover to card to close sequence ends unpaused with no tooltip', (
 
   assert.equal(tooltipTargetId(s), null, 'no stuck tooltip');
   assert.equal(shouldPauseMotion(s), false, 'the flow moves again immediately');
+});
+
+test('closing a card with the mouse leaves no focus ring on the node', () => {
+  // The reported bug: focus was handed back to the node regardless, so the
+  // browser drew a box around the last step clicked.
+  assert.equal(shouldRestoreFocus(state({ keyboardNav: false })), false);
+});
+
+test('closing a card from the keyboard does restore focus', () => {
+  assert.equal(shouldRestoreFocus(state({ keyboardNav: true })), true);
 });
 
 test('a keyboard user keeps the pause after closing a card', () => {

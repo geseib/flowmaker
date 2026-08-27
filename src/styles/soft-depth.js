@@ -29,6 +29,7 @@ export default {
 .fm-node-rail { display: none; }
 .fm-node[data-has-detail="true"] { cursor: pointer; }
 .fm-node:hover .fm-node-shape, .fm-node:focus-visible .fm-node-shape { filter: drop-shadow(0 2px 4px rgb(0 0 0 / .14)) drop-shadow(0 20px 44px rgb(0 0 0 / .2)); }
+.fm-node:focus { outline: none; }
 .fm-node:focus-visible { outline: none; }
 .fm-node:focus-visible .fm-node-shape { stroke: var(--c2); stroke-width: var(--stroke); }
 .fm-node[data-dimmed="true"] { opacity: .55; }
