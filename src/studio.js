@@ -10,6 +10,7 @@ import { buildExport } from './export.js';
 import { resolveDocument } from './app.js';
 import { documentToHtml } from './md.js';
 import { renderMermaidPreview } from './mermaid-preview.js';
+import { AUTHORING_PROMPT } from './prompt.js';
 import { replaceMermaidBlock } from './parse.js';
 
 const STORE_KEY = 'flowmaker.prefs.v1';
@@ -99,6 +100,8 @@ const STUDIO_HTML = `
         <option value="">Load sample&hellip;</option>
         ${SAMPLE_FILES.map(([f, n]) => `<option value="${f}">${n}</option>`).join('')}
       </select>
+      <button type="button" data-action="copy-prompt"
+        title="Copies a prompt for an AI assistant. It explains this file format and has the assistant interview you for the steps, decisions, loop-backs, and per-step detail, then write the .md for you.">Copy prompt</button>
       <button type="button" data-action="refresh" title="Re-render (the editor also refreshes on its own)">Refresh</button>
       <button type="button" data-action="restart" title="Restart the flow from the beginning" aria-label="Restart">&#8635;</button>
       <button type="button" data-action="present" title="Present full screen" aria-label="Present full screen">&#9974;</button>
@@ -413,6 +416,57 @@ export function mountStudio(root) {
     }
   }
 
+  // The async clipboard is unavailable over plain http and in some embedded
+  // contexts, so fall back to a selection copy rather than failing silently.
+  async function copyText(text, button) {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch {
+      const scratch = doc.createElement('textarea');
+      scratch.value = text;
+      scratch.setAttribute('readonly', '');
+      scratch.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+      doc.body.appendChild(scratch);
+      scratch.select();
+      try {
+        ok = doc.execCommand('copy');
+      } catch {
+        ok = false;
+      }
+      scratch.remove();
+    }
+    if (!ok) {
+      // Telling someone to press a key with nothing selected is worse than
+      // saying nothing. Show the text instead, selected and ready to copy.
+      showCopyFallback(text);
+      return;
+    }
+    if (!button) return;
+    const original = button.dataset.label ?? button.textContent;
+    button.dataset.label = original;
+    button.textContent = 'Copied';
+    setTimeout(() => { button.textContent = button.dataset.label ?? original; }, 1600);
+  }
+
+  function showCopyFallback(text) {
+    root.querySelector('.fm-copy-fallback')?.remove();
+    const overlay = doc.createElement('div');
+    overlay.className = 'fm-copy-fallback';
+    overlay.innerHTML = '<div class="fm-copy-card">'
+      + '<p>Your browser blocked the clipboard. The text is selected below.</p>'
+      + '<textarea readonly aria-label="Text to copy"></textarea>'
+      + '<button type="button">Close</button></div>';
+    const area = overlay.querySelector('textarea');
+    area.value = text;
+    overlay.querySelector('button').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    root.appendChild(overlay);
+    area.focus();
+    area.select();
+  }
+
   function restart() {
     state.canvas?.restartAutoScroll();
     state.runtime?.restart();
@@ -515,7 +569,8 @@ export function mountStudio(root) {
     if (action === 'toggle-scroll') setAutoScroll(!state.autoScroll);
     if (action === 'present') setPresenting(true);
     if (action === 'exit-present') setPresenting(false);
-    if (action === 'copy-code') navigator.clipboard?.writeText(codeOut.textContent);
+    if (action === 'copy-prompt') copyText(AUTHORING_PROMPT, e.target.closest('[data-action]'));
+    if (action === 'copy-code') copyText(codeOut.textContent, e.target.closest('[data-action]'));
     if (action === 'download') {
       const blob = new Blob([codeOut.textContent], { type: 'text/html' });
       const a = document.createElement('a');

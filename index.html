@@ -100,6 +100,12 @@
   .fm-warnings code{font-weight:700;margin-right:.5em;opacity:.75}
   [data-dropping="true"]{outline:3px dashed var(--ui-accent);outline-offset:-8px}
 
+  .fm-copy-fallback{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:4vmin;background:rgb(0 0 0 / .45)}
+  .fm-copy-card{width:min(78ch,100%);background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:14px;padding:1.2rem;box-shadow:0 24px 70px rgb(0 0 0 / .35);display:flex;flex-direction:column;gap:.8rem}
+  .fm-copy-card p{margin:0;color:var(--ui-ink-dim);font-size:.9rem}
+  .fm-copy-card textarea{width:100%;height:min(52vh,420px);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:.8rem;border-radius:8px;border:1px solid var(--ui-border);background:var(--ui-panel);color:var(--ui-ink);resize:none}
+  .fm-copy-card button{align-self:flex-end;font:inherit;font-size:.85rem;padding:.4em .9em;border-radius:999px;border:1px solid var(--ui-border);background:var(--ui-panel);color:var(--ui-ink);cursor:pointer}
+
   /* Present mode: strip every piece of interface except the flow itself. */
   #app[data-present="true"] .fm-topbar,
   #app[data-present="true"] .fm-rail,

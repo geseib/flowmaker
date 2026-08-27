@@ -11,7 +11,7 @@ no network requests at runtime.
 
 ```bash
 node server.js                 # http://localhost:8321
-node --test 'test/*.test.js'   # 139 tests, no devDependencies
+node --test 'test/*.test.js'   # 147 tests, no devDependencies
 node build.js                  # dist/ — one self-contained file, opens by double-click
 ```
 
@@ -83,6 +83,12 @@ studio reports any section that matches no node, and any node with no section.
   Hover, focus, or an open detail card freezes everything.
 - **Present mode** — full-screen, no interface, just the flow, a restart button,
   and an × (or Esc). Entering it restarts the flow from the beginning.
+- **Copy prompt** — hands you a prompt to paste into an AI assistant. It
+  explains this file format and tells the assistant to interview you first, for
+  the steps, the decisions and their branch labels, what sends work backwards
+  and to where, the phases, and each step's owner, target, and failure mode,
+  before writing the file. The prompt is generated from the same constants the
+  renderer uses, so it cannot drift when a style, palette, or icon is added.
 - **The style themes the diagram, not the tool** — the style CSS is scoped to
   the diagram wrapper, so the studio's own chrome stays on a fixed neutral theme
   no matter which style or palette is selected.
