@@ -1,4 +1,4 @@
-import { DENSITY, DEFAULTS } from './constants.js';
+import { DENSITY, DEFAULTS, SPEEDS, DEFAULT_SPEED } from './constants.js';
 import { getPalette, deriveTokens } from './palettes.js';
 import { getStyle } from './styles/index.js';
 import { styleCss } from './render.js';
@@ -73,6 +73,7 @@ export function buildExport(input, bundle = {}) {
     loops: input.loops ?? DEFAULTS.loops,
     animationMode: input.animationMode ?? 'pulse',
     autoScroll: input.autoScroll ?? (input.animationMode ?? 'pulse') === 'pulse',
+    speed: SPEEDS.includes(input.speed) ? input.speed : DEFAULT_SPEED,
   };
 
   const css = [
@@ -107,6 +108,7 @@ export function buildExport(input, bundle = {}) {
       <button type="button" data-fm-action="fit-width">Fit</button>
       <button type="button" data-fm-action="zoom-out" aria-label="Zoom out">&minus;</button>
       <button type="button" data-fm-action="zoom-in" aria-label="Zoom in">+</button>
+      ${SPEEDS.map((v) => `<button type="button" data-fm-speed="${v}" title="Playback speed" aria-pressed="${v === data.speed}">${v}&times;</button>`).join('')}
     </div>
   </header>
   <div class="fm-canvas" id="fm-canvas"><div class="fm-stage" id="fm-stage"></div></div>

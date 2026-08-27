@@ -204,3 +204,13 @@ test('an empty diagram has no nearest step', () => {
   assert.equal(nearestNodeId([], { scrollLeft: 0, clientWidth: 400 }), null);
   assert.equal(nearestNodeId(undefined, undefined), null);
 });
+
+// --- playback speed --------------------------------------------------------
+
+test('speed scales the crawl proportionally', () => {
+  const base = advanceScroll({ pos: 0, dir: 1, max: 1000, dt: 1, speed: 60, now: 0, holdUntil: 0 });
+  const fast = advanceScroll({ pos: 0, dir: 1, max: 1000, dt: 1, speed: 120, now: 0, holdUntil: 0 });
+  const slow = advanceScroll({ pos: 0, dir: 1, max: 1000, dt: 1, speed: 30, now: 0, holdUntil: 0 });
+  assert.ok(Math.abs(fast.pos - base.pos * 2) < 0.001);
+  assert.ok(Math.abs(slow.pos - base.pos / 2) < 0.001);
+});

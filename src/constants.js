@@ -13,6 +13,11 @@ export const DIRECTION_KEYS = ['LR', 'RL', 'TD', 'BT'];
 //   auto  - a line for a short loop, a wrap once it spans WRAP_MIN_SPAN ranks
 export const LOOP_KEYS = ['auto', 'line', 'wrap'];
 
+// Playback speed multipliers offered next to the zoom controls. They scale the
+// crawl, the walkthrough's step interval, and the pulse together.
+export const SPEEDS = [0.5, 1, 2];
+export const DEFAULT_SPEED = 1;
+
 export const DEFAULTS = {
   style: 'executive-clean',
   palette: 'harbor',

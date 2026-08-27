@@ -11,7 +11,7 @@ no network requests at runtime.
 
 ```bash
 node server.js                 # http://localhost:8321
-node --test 'test/*.test.js'   # 166 tests, no devDependencies
+node --test 'test/*.test.js'   # 193 tests, no devDependencies
 node build.js                  # dist/ — one self-contained file, opens by double-click
 ```
 
@@ -97,10 +97,20 @@ studio reports any section that matches no node, and any node with no section.
   step's detail). The editor below holds the markdown, the mermaid on its own
   (edits splice back without touching frontmatter or detail sections), and the
   generated export.
+- **Embed HTML** — the editor's third pane is a self-contained snippet: the
+  diagram with every choice already applied, no toolbar and no script, for
+  pasting inline into another document. Its styles are scoped to its own
+  wrapper so they cannot reach the host page, step summaries become native
+  browser tooltips, and the pulse runs on CSS alone. **Export HTML** still
+  produces the full standalone page with controls.
+- **Playback speed** — 0.5x, 1x, and 2x beside the zoom controls, scaling the
+  crawl, the walkthrough, and the pulse together.
 - **Auto-scroll loops** — the flow travels one way and wraps: it leaves one
   edge and comes straight back in at the other, with no reverse and no jump.
-  The scroller is padded by exactly one viewport on each side, so the last pixel
-  clears the leading edge as the first pixel arrives at the trailing one.
+  Blank travel of exactly one viewport leads the flow, so the last pixel clears
+  the leading edge as the first arrives at the trailing one, and a longer gap
+  follows it carrying the document's title. The loop opens on that title rather
+  than making a viewer wait a full cycle to learn what they are looking at.
 - **Walkthrough follows the view** — the active step is centred, and scrolling
   the canvas by hand moves the highlight to whatever you scrolled to and holds
   the auto-advance while you look around.

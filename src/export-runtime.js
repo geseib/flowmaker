@@ -37,6 +37,9 @@ export function bootExport() {
 
   let runtimeRef = null;
   const canvas = createCanvas(host, model, {
+    speed: data.speed,
+    seamTitle: data.meta?.title,
+    seamSubtitle: data.meta?.subtitle,
     // Scrolling by hand during a walkthrough carries the highlight along and
     // holds the auto-advance while the viewer looks around.
     onUserScroll: () => {
@@ -50,6 +53,7 @@ export function bootExport() {
     details: data.details,
     model,
     animationMode: data.animationMode,
+    speed: data.speed,
     scrollTo: (node) => canvas.scrollToNode(node),
     // Hovering a step freezes the crawl as well as the pulse.
     onPause: () => canvas.pauseAutoScroll(),
@@ -102,6 +106,16 @@ export function bootExport() {
   setPressed(`anim-${data.animationMode === 'walkthrough' ? 'walk' : data.animationMode}`);
 
   root.addEventListener('click', (e) => {
+    const speedBtn = e.target.closest('[data-fm-speed]');
+    if (speedBtn) {
+      const next = Number(speedBtn.dataset.fmSpeed);
+      canvas.setSpeed(next);
+      runtime.setSpeed(next);
+      for (const b of root.querySelectorAll('[data-fm-speed]')) {
+        b.setAttribute('aria-pressed', String(Number(b.dataset.fmSpeed) === next));
+      }
+      return;
+    }
     const action = e.target.closest('[data-fm-action]')?.dataset.fmAction;
     if (!action) return;
     if (action === 'anim-pulse') { runtime.setAnimationMode('pulse'); setPressed(action); setScroll(true); }

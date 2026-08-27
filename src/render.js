@@ -112,7 +112,7 @@ function iconMarkup(n, spec, iconName) {
   };
 }
 
-function nodeMarkup(n, spec, details, showIcons) {
+function nodeMarkup(n, spec, details, showIcons, nativeTitles) {
   const detail = details?.[n.id];
   const iconName = showIcons ? iconFor(n) : null;
   const icon = iconMarkup(n, spec, iconName);
@@ -135,6 +135,7 @@ function nodeMarkup(n, spec, details, showIcons) {
     iconName ? ` data-icon="${esc(iconName)}"` : '',
     detail ? ' data-has-detail="true"' : '',
     ` tabindex="0" role="button" aria-label="${esc(name)}">`,
+    nativeTitles && detail?.tooltip ? `<title>${esc(detail.tooltip)}</title>` : '',
     shapeMarkup(n, spec),
     railMarkup(n, spec),
     icon.markup,
@@ -205,14 +206,27 @@ export function renderSvg(model, opts = {}) {
 
   const edges = model.edges.map((e) => edgeMarkup(e, spec)).join('');
   const showIcons = opts.showIcons ?? showIconsFor(opts.styleKey);
-  const nodes = model.nodes.map((n) => nodeMarkup(n, spec, details, showIcons)).join('');
+  const nodes = model.nodes.map((n) => nodeMarkup(n, spec, details, showIcons, opts.nativeTitles)).join('');
   const title = opts.meta?.title ? `<title>${esc(opts.meta.title)}</title>` : '';
+
+  // The studio's runtime builds the travelling dots in script. A snippet has no
+  // script, so draw them here and let CSS motion paths carry them.
+  const pulseDuration = { marquee: 2600, standard: 2000, compact: 1700 }[model.density] ?? 2000;
+  const pulseR = { marquee: 7, standard: 4.5, compact: 3 }[model.density] ?? 4.5;
+  const pulses = opts.pulses
+    ? `<g class="fm-layer-pulses" aria-hidden="true">${model.edges.map((e, i) => (e.path
+      ? `<circle class="fm-pulse" cx="0" cy="0" r="${pulseR}"${e.isBackEdge ? ' data-back="true"' : ''}`
+        + ` style="offset-path:path(&quot;${e.path}&quot;);offset-rotate:0deg;`
+        + `animation:fm-travel ${pulseDuration}ms linear infinite;`
+        + `animation-delay:${(i % 5) * (pulseDuration / 5)}ms"/>`
+      : '')).join('')}</g>`
+    : '';
 
   return `<svg class="fm-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${model.bounds.w} ${model.bounds.h}" `
     + `width="${model.bounds.w}" height="${model.bounds.h}" role="img" `
     + `aria-label="${esc(opts.meta?.title ?? 'Flow diagram')}">`
     + `${title}${defs}<g class="fm-layer-subgraphs">${subgraphs}</g>`
-    + `<g class="fm-layer-edges">${edges}</g><g class="fm-layer-nodes">${nodes}</g></svg>`;
+    + `<g class="fm-layer-edges">${edges}</g>${pulses}<g class="fm-layer-nodes">${nodes}</g></svg>`;
 }
 
 export { deriveTokens };

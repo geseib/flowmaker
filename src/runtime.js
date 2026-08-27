@@ -5,13 +5,19 @@ export { ANIMATE_CSS };
 
 export const RUNTIME_CSS = `
 .fm-tooltip {
-  position: absolute; z-index: 40; max-width: 34ch; pointer-events: none;
-  padding: .6em .8em; border-radius: 10px; opacity: 0;
+  /* Fixed, and mounted outside the scroller: an absolutely positioned child of
+     a scroll container contributes to its scrollable area, which inflated the
+     scroll range and broke the loop's arithmetic. */
+  position: fixed; z-index: 40; pointer-events: none;
+  /* Wide and short reads faster than a tall narrow column. width:max-content
+     keeps a short tooltip tight; the cap only bites on a long one. */
+  width: max-content; max-width: min(64ch, 86vw);
+  padding: .7em 1em; border-radius: 10px; opacity: 0;
   transition: opacity .14s ease;
   background: var(--surface); color: var(--ink);
   border: 1px solid var(--border);
   box-shadow: 0 10px 30px rgb(0 0 0 / .22);
-  font-size: 1rem; line-height: 1.4;
+  font-size: 1rem; line-height: 1.45; text-wrap: pretty;
 }
 .fm-tooltip[data-open="true"] { opacity: 1; }
 .fm-modal-backdrop {
@@ -93,16 +99,15 @@ export function attachRuntime(root, config = {}) {
   const model = config.model ?? { nodes: [], edges: [] };
   const doc = root.ownerDocument;
 
+  const chromeHost = root.closest('.fm-root') ?? doc.body;
+
   const tooltip = doc.createElement('div');
   tooltip.className = 'fm-tooltip';
   tooltip.setAttribute('role', 'tooltip');
-  root.appendChild(tooltip);
+  chromeHost.appendChild(tooltip);
 
-  // The modal is fixed-position chrome. Mounting it inside the pannable canvas
-  // let the canvas capture the pointer and swallow clicks meant for the modal,
-  // so it lives on the styled root instead (which still supplies the tokens).
-  const chromeHost = root.closest('.fm-root') ?? doc.body;
-
+  // Both the tooltip and the card are fixed-position chrome, mounted on the
+  // styled root so they still inherit the palette.
   const backdrop = doc.createElement('div');
   backdrop.className = 'fm-modal-backdrop';
   backdrop.innerHTML = '<div class="fm-modal" role="dialog" aria-modal="true" aria-labelledby="fm-modal-title">'
@@ -130,6 +135,7 @@ export function attachRuntime(root, config = {}) {
 
   const animator = createAnimator(root, model, {
     mode: config.animationMode ?? 'pulse',
+    speed: config.speed,
     prefersReducedMotion: config.prefersReducedMotion,
     onStep: config.onStep,
     scrollTo: config.scrollTo,
@@ -137,17 +143,34 @@ export function attachRuntime(root, config = {}) {
 
   const elFor = (id) => root.querySelector(`.fm-node[data-node-id="${cssEscape(id)}"]`);
 
+  const TOOLTIP_GAP = 12;
+  const TOOLTIP_EDGE = 10;
+
   function showTooltip(el) {
     const id = el.dataset.nodeId;
     const detail = details[id];
     if (!detail?.tooltip) return;
     tooltip.textContent = detail.tooltip;
     tooltip.dataset.open = 'true';
+
+    // Viewport coordinates, since the tooltip is fixed.
     const box = el.getBoundingClientRect();
     const host = root.getBoundingClientRect();
-    tooltip.style.left = `${box.left - host.left + box.width / 2 + root.scrollLeft}px`;
-    tooltip.style.top = `${box.top - host.top - 12 + root.scrollTop}px`;
-    tooltip.style.transform = 'translate(-50%, -100%)';
+    const centre = box.left + box.width / 2;
+
+    // A wide tooltip near an edge would hang off the canvas, so keep it inside.
+    const half = tooltip.offsetWidth / 2;
+    const min = host.left + half + TOOLTIP_EDGE;
+    const max = host.right - half - TOOLTIP_EDGE;
+    const left = max < min ? centre : Math.min(Math.max(centre, min), max);
+
+    // Above the step by default; below it when there is no room above.
+    const fitsAbove = box.top - TOOLTIP_GAP - tooltip.offsetHeight >= host.top;
+    const top = fitsAbove ? box.top - TOOLTIP_GAP : box.bottom + TOOLTIP_GAP;
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    tooltip.style.transform = fitsAbove ? 'translate(-50%, -100%)' : 'translate(-50%, 0)';
   }
 
   function hideTooltip() {
@@ -363,6 +386,7 @@ export function attachRuntime(root, config = {}) {
     animator,
     setAnimationMode: (mode) => animator.setMode(mode),
     restart: () => animator.restart(),
+    setSpeed: (n) => animator.setSpeed(n),
     goToId: (id) => animator.goToId(id),
     deferAdvance: (ms) => animator.deferAdvance(ms),
     getMode: () => animator.getState().mode,

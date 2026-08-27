@@ -1,4 +1,4 @@
-import { DENSITY, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS } from './constants.js';
+import { DENSITY, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, SPEEDS, DEFAULT_SPEED } from './constants.js';
 import { PALETTES, getPalette, deriveTokens } from './palettes.js';
 import { STYLES, getStyle } from './styles/index.js';
 import { renderSvg, styleCss } from './render.js';
@@ -7,6 +7,7 @@ import { CANVAS_CSS, createCanvas } from './canvas.js';
 import { browserMeasure } from './measure.js';
 import { showIconsFor } from './icons.js';
 import { buildExport } from './export.js';
+import { buildEmbed } from './embed.js';
 import { resolveDocument } from './app.js';
 import { documentToHtml } from './md.js';
 import { renderMermaidPreview } from './mermaid-preview.js';
@@ -141,6 +142,9 @@ const STUDIO_HTML = `
             <button type="button" data-action="fit-width">Fit width</button>
             <button type="button" data-action="fit-height">Fit height</button>
             <button type="button" data-action="actual">1:1</button>
+            <span class="fm-ctl-sep" aria-hidden="true"></span>
+            ${SPEEDS.map((v) => `<button type="button" data-speed="${v}" title="Playback speed"
+              aria-pressed="${v === DEFAULT_SPEED}">${v}&times;</button>`).join('')}
           </div>
         </div>
         <div class="fm-views" id="fm-views" data-view="flow">
@@ -156,11 +160,11 @@ const STUDIO_HTML = `
         <div class="fm-panel-tabs">
           <button type="button" data-pane="markdown" aria-pressed="true">Markdown</button>
           <button type="button" data-pane="mermaid" aria-pressed="false">Mermaid</button>
-          <button type="button" data-pane="html" aria-pressed="false">Generated HTML</button>
+          <button type="button" data-pane="html" aria-pressed="false" title="A self-contained snippet with no toolbar, for pasting into another document">Embed HTML</button>
           <div class="fm-zoom">
             <button type="button" data-action="refresh">Refresh</button>
             <button type="button" data-action="copy-code">Copy</button>
-            <button type="button" data-action="download">Download</button>
+            <button type="button" data-action="download-embed">Download</button>
           </div>
         </div>
         <div class="fm-panes" id="fm-panes" data-pane="markdown">
@@ -191,8 +195,9 @@ export function mountStudio(root) {
   const doc = root.ownerDocument ?? document;
   const state = {
     source: STARTER_DOC,
-    overrides: loadPrefs(),
+    overrides: (({ style, palette, density }) => ({ style, palette, density }))(loadPrefs()),
     animationMode: 'pulse',
+    speed: loadPrefs().speed ?? DEFAULT_SPEED,
     autoScroll: true,
     presenting: false,
     resolved: null,
@@ -234,6 +239,16 @@ export function mountStudio(root) {
   el('#fm-loops').innerHTML = LOOP_KEYS
     .map((k) => `<option value="${k}">${k[0].toUpperCase()}${k.slice(1)}</option>`).join('');
 
+  function setSpeed(value) {
+    state.speed = SPEEDS.includes(value) ? value : DEFAULT_SPEED;
+    state.canvas?.setSpeed(state.speed);
+    state.runtime?.setSpeed(state.speed);
+    for (const b of root.querySelectorAll('[data-speed]')) {
+      b.setAttribute('aria-pressed', String(Number(b.dataset.speed) === state.speed));
+    }
+    savePrefs({ ...loadPrefs(), speed: state.speed });
+  }
+
   function setAutoScroll(on) {
     state.autoScroll = on;
     if (on && crawlAllowed()) state.canvas?.startAutoScroll();
@@ -256,11 +271,24 @@ export function mountStudio(root) {
       loops: r.meta.loops,
       animationMode: state.animationMode,
       autoScroll: state.autoScroll,
+      speed: state.speed,
     };
   }
 
+  // The pane shows an embeddable snippet: the diagram with every choice
+  // applied and no interface, for pasting into another document. The Export
+  // button still produces the full standalone page.
   function refreshExport() {
-    codeOut.textContent = buildExport(exportInput(), { runtimeJs: window.__FM_RUNTIME_BUNDLE__ ?? '' });
+    const r = state.resolved;
+    codeOut.textContent = buildEmbed({
+      meta: r.meta,
+      model: r.model,
+      details: r.details,
+      styleKey: r.meta.style,
+      paletteKey: r.meta.palette,
+      density: r.meta.density,
+      animationMode: state.animationMode,
+    });
   }
 
   function render() {
@@ -293,6 +321,9 @@ export function mountStudio(root) {
     stage.innerHTML = svg;
 
     state.canvas = createCanvas(canvasHost, resolved.model, {
+      speed: state.speed,
+      seamTitle: resolved.meta.title,
+      seamSubtitle: resolved.meta.subtitle,
       onZoom: (z) => { el('#fm-zoom-label').textContent = `${Math.round(z * 100)}%`; },
       // Scrolling the canvas by hand during a walkthrough moves the highlight to
       // whichever step you have scrolled to, rather than fighting you.
@@ -308,6 +339,7 @@ export function mountStudio(root) {
       details: resolved.details,
       model: resolved.model,
       animationMode: state.animationMode,
+      speed: state.speed,
       scrollTo: (node) => state.canvas.scrollToNode(node),
       // Hovering a step, focusing it, or opening its card freezes the crawl too.
       onPause: () => state.canvas?.pauseAutoScroll(),
@@ -467,6 +499,17 @@ export function mountStudio(root) {
     area.select();
   }
 
+  const slug = () => (state.resolved?.meta.title || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+  function downloadHtml(text, suffix = '') {
+    const blob = new Blob([text], { type: 'text/html' });
+    const a = doc.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${slug()}${suffix}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   function restart() {
     state.canvas?.restartAutoScroll();
     state.runtime?.restart();
@@ -479,6 +522,8 @@ export function mountStudio(root) {
     // palette, or density, that choice survives switching documents; the new
     // file's frontmatter only applies to whatever they have not chosen.
     render();
+    // Open on the title, the way the loop does.
+    requestAnimationFrame(restart);
   }
 
   el('#fm-upload').addEventListener('change', async (e) => {
@@ -527,6 +572,11 @@ export function mountStudio(root) {
       }
       return;
     }
+    const speedBtn = e.target.closest('button[data-speed]');
+    if (speedBtn) {
+      setSpeed(Number(speedBtn.dataset.speed));
+      return;
+    }
     const viewBtn = e.target.closest('button[data-view]');
     if (viewBtn) {
       showView(viewBtn.dataset.view);
@@ -571,11 +621,15 @@ export function mountStudio(root) {
     if (action === 'exit-present') setPresenting(false);
     if (action === 'copy-prompt') copyText(AUTHORING_PROMPT, e.target.closest('[data-action]'));
     if (action === 'copy-code') copyText(codeOut.textContent, e.target.closest('[data-action]'));
+    if (action === 'download-embed') {
+      downloadHtml(codeOut.textContent, '-embed');
+      return;
+    }
     if (action === 'download') {
-      const blob = new Blob([codeOut.textContent], { type: 'text/html' });
+      const blob = new Blob([buildExport(exportInput(), { runtimeJs: window.__FM_RUNTIME_BUNDLE__ ?? '' })], { type: 'text/html' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${(state.resolved.meta.title || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.html`;
+      a.download = `${slug()}.html`;
       a.click();
       URL.revokeObjectURL(a.href);
     }
@@ -592,6 +646,8 @@ export function mountStudio(root) {
   render();
   showPane('markdown');
   showView('flow');
+  setSpeed(state.speed);
+  requestAnimationFrame(restart);
   const api = { render, state };
   // Handy for debugging in the console and for driving the app from tests.
   if (typeof window !== 'undefined') window.__flowmaker = api;

@@ -27,8 +27,17 @@ export const CANVAS_CSS = `
   touch-action: pan-x pan-y;
 }
 .fm-canvas[data-panning="true"] { cursor: grabbing; user-select: none; }
-/* content-box so the loop spacing sits outside the diagram's own width. */
-.fm-stage { box-sizing: content-box; transform-origin: 0 0; will-change: transform; margin: auto; }
+.fm-stage { transform-origin: 0 0; will-change: transform; margin: auto; }
+/* Blank travel either side of the diagram, outside the transformed stage. */
+.fm-spacer { display: grid; place-items: center; pointer-events: none; }
+/* The title rides in the stretch between the end of the flow and its return,
+   so the loop has a beat instead of a void. */
+.fm-seam { text-align: center; padding: 0 2rem; }
+.fm-seam h2 {
+  margin: 0; font-family: var(--font); color: var(--ink);
+  font-size: 3.4rem; font-weight: 800; line-height: 1.05; letter-spacing: -.02em;
+}
+.fm-seam p { margin: .5em 0 0; font-family: var(--font); color: var(--ink-dim); font-size: 1.25rem; }
 .fm-canvas svg { display: block; overflow: visible; }
 .fm-canvas::-webkit-scrollbar { height: 12px; width: 12px; }
 .fm-canvas::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
@@ -47,6 +56,9 @@ const DRAG_RESUME_MS = 1400;
 // A window after the app scrolls the view in which scroll events are ignored,
 // so following a step is not mistaken for the user scrolling.
 const PROGRAMMATIC_SCROLL_MS = 700;
+// How much blank travel follows the flow before it comes round again, as a
+// fraction of the viewport. This is the stretch the title crosses.
+const SEAM_GAP_RATIO = 0.85;
 
 // Which step sits nearest the middle of the viewport. Pure so the choice can be
 // tested without a browser: scroll events are not dispatched at all on a page
@@ -149,8 +161,8 @@ export function createCanvas(container, model, opts = {}) {
 
   const viewport = () => ({ w: container.clientWidth, h: container.clientHeight });
   // Where the diagram actually starts, including any loop spacing on the stage.
-  const contentLeft = () => stage.offsetLeft + (parseFloat(stage.style.paddingLeft) || 0);
-  const contentTop = () => stage.offsetTop + (parseFloat(stage.style.paddingTop) || 0);
+  const contentLeft = () => stage.offsetLeft;
+  const contentTop = () => stage.offsetTop;
 
   const NO_PAN = '.fm-node, .fm-modal-backdrop, .fm-tooltip, button, a, input, select, textarea';
 
@@ -238,7 +250,11 @@ export function createCanvas(container, model, opts = {}) {
   // Accumulate the true position here and write the rounded value out.
   let scrollPos = 0;
   let scrollMode = opts.scrollMode ?? 'loop';
+  let speedMult = Number.isFinite(opts.speed) && opts.speed > 0 ? opts.speed : 1;
   let scrollTimer = null;
+  let seam = null;
+  let leadSpacer = null;
+  let trailSpacer = null;
 
   const scrollAxis = () => (model.direction === 'TD' || model.direction === 'BT' ? 'top' : 'left');
 
@@ -246,30 +262,81 @@ export function createCanvas(container, model, opts = {}) {
   // flow run off one edge and come back in at the other without a jump, and it
   // is only applied while the crawl is running so manual scrolling is not
   // padded with dead space.
+  // Blank travel on each side of the diagram, as real siblings of the stage
+  // rather than padding on it. The stage is transformed, so anything inside it
+  // is scaled too: its padding would only have measured correctly at 100% zoom,
+  // and the title would shrink with the diagram. Untransformed spacers keep the
+  // scroll arithmetic in screen pixels at any zoom.
+  // Where the title sits, centred in the viewport. That is the far end of the
+  // scroll range: travelling on from there wraps straight into the flow.
+  function seamStartPos() {
+    if (!leadSpacer || !trailSpacer) return 0;
+    if (scrollAxis() === 'left') {
+      const trailStart = leadSpacer.offsetWidth + stage.offsetWidth;
+      return Math.max(0, trailStart + trailSpacer.offsetWidth / 2 - container.clientWidth / 2);
+    }
+    const trailStart = leadSpacer.offsetHeight + stage.offsetHeight;
+    return Math.max(0, trailStart + trailSpacer.offsetHeight / 2 - container.clientHeight / 2);
+  }
+
   function applyLoopPadding(on) {
     if (!on) {
-      stage.style.padding = '';
+      leadSpacer?.remove();
+      trailSpacer?.remove();
+      leadSpacer = null;
+      trailSpacer = null;
+      seam = null;
+      stage.style.margin = '';
+      container.style.flexDirection = '';
       return;
     }
+
     const axis = scrollAxis();
     const need = axis === 'left' ? container.clientWidth : container.clientHeight;
     if (need <= 0) return;
+    const gap = Math.round(need * SEAM_GAP_RATIO);
 
-    // The padding has to equal the viewport exactly: max then works out to the
-    // diagram's length plus one viewport, which is what makes resetting to zero
-    // continue the motion instead of jumping. It is checked every tick because
-    // the panel is often not laid out yet when the crawl starts, and a
-    // ResizeObserver does not fire for that: the element's own box never
-    // changed, only the space around it.
-    const current = axis === 'left'
-      ? parseFloat(stage.style.paddingLeft) || 0
-      : parseFloat(stage.style.paddingTop) || 0;
-    if (Math.abs(current - need) < 1) return;
+    if (!leadSpacer) {
+      const doc = container.ownerDocument;
+      leadSpacer = doc.createElement('div');
+      leadSpacer.className = 'fm-spacer';
+      leadSpacer.setAttribute('aria-hidden', 'true');
+      trailSpacer = doc.createElement('div');
+      trailSpacer.className = 'fm-spacer fm-spacer-trail';
+      trailSpacer.setAttribute('aria-hidden', 'true');
 
-    stage.style.padding = axis === 'left' ? `0 ${need}px` : `${need}px 0`;
+      if (opts.seamTitle || opts.seamSubtitle) {
+        seam = doc.createElement('div');
+        seam.className = 'fm-seam';
+        const h = doc.createElement('h2');
+        h.textContent = opts.seamTitle ?? '';
+        seam.appendChild(h);
+        if (opts.seamSubtitle) {
+          const sub = doc.createElement('p');
+          sub.textContent = opts.seamSubtitle;
+          seam.appendChild(sub);
+        }
+        trailSpacer.appendChild(seam);
+      }
+
+      container.insertBefore(leadSpacer, stage);
+      stage.after(trailSpacer);
+      // Auto margins would hand the spare space back to the stage.
+      stage.style.margin = '0';
+    }
+
+    container.style.flexDirection = axis === 'left' ? 'row' : 'column';
+    const previous = parseFloat(leadSpacer.style.flexBasis) || 0;
+    if (Math.abs(previous - need) < 1) return;
+
+    leadSpacer.style.flex = `0 0 ${need}px`;
+    // The trailing side carries the extra gap: the stretch the title crosses
+    // after the flow leaves and before it comes round again.
+    trailSpacer.style.flex = `0 0 ${need + gap}px`;
     // Shift with it, so the diagram does not jump when the spacing changes.
-    scrollPos += need - current;
+    scrollPos += need - previous;
   }
+
 
   function scrollFrame(now) {
     if (scrollPaused) { lastFrame = now; return; }
@@ -292,7 +359,7 @@ export function createCanvas(container, model, opts = {}) {
       dir: scrollDir,
       max,
       dt,
-      speed: SCROLL_PX_PER_SEC[model.density] ?? SCROLL_PX_PER_SEC.standard,
+      speed: (SCROLL_PX_PER_SEC[model.density] ?? SCROLL_PX_PER_SEC.standard) * speedMult,
       now,
       holdUntil,
       mode: scrollMode,
@@ -442,6 +509,9 @@ export function createCanvas(container, model, opts = {}) {
     },
     startAutoScroll,
     stopAutoScroll,
+    setSpeed(next) {
+      speedMult = Number.isFinite(next) && next > 0 ? next : 1;
+    },
     setScrollMode(mode) {
       scrollMode = mode === 'bounce' ? 'bounce' : 'loop';
       if (scrollWanted) {
@@ -449,14 +519,20 @@ export function createCanvas(container, model, opts = {}) {
         startAutoScroll();
       }
     },
-    // Send the view back to the start and travel forward again.
+    // Begin at the title, so a loop opens on it rather than making the viewer
+    // wait a whole cycle to find out what they are looking at.
     restartAutoScroll() {
-      scrollPos = 0;
       scrollDir = 1;
       holdUntil = 0;
       lastFrame = 0;
-      container.scrollLeft = 0;
-      container.scrollTop = 0;
+      scrollPos = seamStartPos();
+      if (scrollAxis() === 'left') {
+        container.scrollLeft = Math.round(scrollPos);
+        container.scrollTop = 0;
+      } else {
+        container.scrollTop = Math.round(scrollPos);
+        container.scrollLeft = 0;
+      }
     },
     isAutoScrolling: () => scrollWanted,
     destroy() {

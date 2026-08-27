@@ -31,6 +31,18 @@ export function walkOrder(model) {
 const PULSE_MS = { marquee: 2600, standard: 2000, compact: 1700 };
 const STEP_MS = { marquee: 2800, standard: 2000, compact: 1500 };
 
+const clampSpeed = (n) => (Number.isFinite(n) && n > 0 ? Math.min(8, Math.max(0.1, n)) : 1);
+
+// Doubling the speed halves the time a step is held and the time a pulse takes
+// to travel an edge.
+export function stepIntervalMs(density, speed = 1) {
+  return (STEP_MS[density] ?? STEP_MS.standard) / clampSpeed(speed);
+}
+
+export function pulseDurationMs(density, speed = 1) {
+  return (PULSE_MS[density] ?? PULSE_MS.standard) / clampSpeed(speed);
+}
+
 export function createAnimator(root, model, opts = {}) {
   const doc = root.ownerDocument;
   const svg = root.querySelector('svg');
@@ -44,6 +56,7 @@ export function createAnimator(root, model, opts = {}) {
     activeIndex: -1,
   };
   const order = walkOrder(model);
+  let speed = clampSpeed(opts.speed);
   let pulseLayer = null;
   let timer = null;
   // When someone scrolls the canvas by hand the highlight follows them, and the
@@ -65,7 +78,7 @@ export function createAnimator(root, model, opts = {}) {
     pulseLayer = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
     pulseLayer.setAttribute('class', 'fm-layer-pulses');
     pulseLayer.setAttribute('aria-hidden', 'true');
-    const duration = PULSE_MS[model.density] ?? PULSE_MS.standard;
+    const duration = pulseDurationMs(model.density, speed);
     model.edges.forEach((e, i) => {
       if (!e.path) return;
       const dot = doc.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -126,7 +139,7 @@ export function createAnimator(root, model, opts = {}) {
   function startTimer() {
     stopTimer();
     if (state.mode !== 'walkthrough' || !state.playing || state.paused) return;
-    timer = setInterval(tick, STEP_MS[model.density] ?? STEP_MS.standard);
+    timer = setInterval(tick, stepIntervalMs(model.density, speed));
   }
 
   function applyMode() {
@@ -181,6 +194,10 @@ export function createAnimator(root, model, opts = {}) {
       state.activeIndex = i;
       paintWalk({ follow: false });
       return true;
+    },
+    setSpeed(next) {
+      speed = clampSpeed(next);
+      applyMode();
     },
     deferAdvance(ms) {
       deferUntil = nowMs() + ms;
