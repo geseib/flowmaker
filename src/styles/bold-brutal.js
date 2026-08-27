@@ -23,6 +23,8 @@ export default {
 .fm-node[data-kind="decision"] .fm-node-label { fill: var(--c2-ink); }
 .fm-node[data-kind="terminal"] .fm-node-label { fill: var(--c3-ink); }
 .fm-node-icon { display: none; }
+.fm-node-badge { display: none; }
+.fm-node-rail { display: none; }
 .fm-node[data-has-detail="true"] { cursor: pointer; }
 .fm-node:hover .fm-node-shape, .fm-node:focus-visible .fm-node-shape { filter: drop-shadow(${Math.round(spec.stroke * 2)}px ${Math.round(spec.stroke * 2)}px 0 var(--ink)); }
 .fm-node:focus-visible { outline: none; }
@@ -37,5 +39,7 @@ export default {
 .fm-edge-label-bg { fill: var(--ground); }
 .fm-arrow { fill: var(--ink); }
 .fm-arrow-alert { fill: var(--c4); }
+.fm-wrap-tag circle { fill: var(--ground); stroke: var(--c4); stroke-width: var(--stroke); }
+.fm-wrap-tag-text { fill: var(--c4); font-size: ${spec.labelFontSize + 2}px; font-weight: 800; letter-spacing: .04em; }
 `.trim(),
 };

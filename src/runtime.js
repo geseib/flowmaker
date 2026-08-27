@@ -59,7 +59,14 @@ const FOCUSABLE = 'a[href], button, [tabindex]:not([tabindex="-1"])';
 // than as incremented counters, because a counter silently goes out of balance
 // the moment one pointerout is missed and the diagram then stays frozen.
 export function shouldPauseMotion(s) {
-  return s.hoveredId !== null || s.focusedId !== null || s.modalOpen || s.externalPause;
+  // Focus holds the pause only while someone is actually navigating by
+  // keyboard, so a diagram does not move out from under them. Focus that was
+  // restored by closing a card must not freeze the flow indefinitely: the
+  // pointer has moved on, and nothing on screen would explain the stall.
+  return s.hoveredId !== null
+    || (s.focusedId !== null && s.keyboardNav)
+    || s.modalOpen
+    || s.externalPause;
 }
 
 // Hover always shows a tooltip. Focus shows one only while someone is actually
@@ -340,6 +347,7 @@ export function attachRuntime(root, config = {}) {
   return {
     animator,
     setAnimationMode: (mode) => animator.setMode(mode),
+    restart: () => animator.restart(),
     pause: pauseAll,
     resume: resumeAll,
     focusNode: (id) => {

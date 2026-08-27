@@ -1,5 +1,6 @@
 export const STYLE_KEYS = [
-  'neon-circuit', 'executive-clean', 'blueprint', 'soft-depth', 'bold-brutal', 'infographic',
+  'neon-circuit', 'executive-clean', 'blueprint', 'soft-depth',
+  'bold-brutal', 'infographic', 'accent-rail',
 ];
 
 export const DENSITY_KEYS = ['marquee', 'standard', 'compact'];

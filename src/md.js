@@ -18,6 +18,30 @@ function inline(text) {
 const isTableDivider = (line) => /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(line) && line.includes('-');
 const cells = (line) => line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map((c) => c.trim());
 
+// Renders the whole document as a reading view: the title and subtitle, then
+// every step in flow order with its tooltip as a lede and its detail body
+// beneath. Steps in the graph with no section are listed so the gap is visible.
+export function documentToHtml({ meta, model, details }) {
+  const esc2 = (v) => esc(String(v ?? ''));
+  const head = `<header class="fm-doc-head"><h1>${esc2(meta?.title)}</h1>`
+    + (meta?.subtitle ? `<p>${esc2(meta.subtitle)}</p>` : '')
+    + '</header>';
+
+  const steps = (model?.nodes ?? []).map((n) => {
+    const d = details?.[n.id];
+    const label = d?.title || n.label || n.id;
+    const lede = d?.tooltip ? `<p class="fm-doc-lede">${esc2(d.tooltip)}</p>` : '';
+    const body = d?.bodyMd
+      ? mdToHtml(d.bodyMd)
+      : '<p class="fm-doc-missing">No detail section for this step.</p>';
+    return `<section class="fm-doc-step" data-step="${esc2(n.id)}">`
+      + `<p class="fm-doc-eyebrow">${esc2(n.id)}</p>`
+      + `<h2>${esc2(label)}</h2>${lede}<div class="fm-doc-body">${body}</div></section>`;
+  }).join('');
+
+  return `${head}<div class="fm-doc-steps">${steps}</div>`;
+}
+
 export function mdToHtml(md) {
   const source = String(md ?? '').replace(/\r\n?/g, '\n').trimEnd();
   if (source.trim() === '') return '';

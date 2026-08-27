@@ -8,6 +8,8 @@ import { browserMeasure } from './measure.js';
 import { showIconsFor } from './icons.js';
 import { buildExport } from './export.js';
 import { resolveDocument } from './app.js';
+import { documentToHtml } from './md.js';
+import { replaceMermaidBlock } from './parse.js';
 
 const STORE_KEY = 'flowmaker.prefs.v1';
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
@@ -94,6 +96,9 @@ const STUDIO_HTML = `
         <option value="">Load sample&hellip;</option>
         ${SAMPLE_FILES.map(([f, n]) => `<option value="${f}">${n}</option>`).join('')}
       </select>
+      <button type="button" data-action="refresh" title="Re-render (the editor also refreshes on its own)">Refresh</button>
+      <button type="button" data-action="restart" title="Restart the flow from the beginning" aria-label="Restart">&#8635;</button>
+      <button type="button" data-action="present" title="Present full screen" aria-label="Present full screen">&#9974;</button>
       <button type="button" data-action="download" class="fm-primary">Export HTML</button>
     </div>
   </header>
@@ -114,16 +119,13 @@ const STUDIO_HTML = `
       <div class="fm-seg" style="margin-top:.4rem">
         <button type="button" data-action="toggle-scroll" aria-pressed="false">Auto-scroll</button>
       </div>
-      <div class="fm-seg" style="margin-top:.4rem">
-        <button type="button" data-action="present" class="fm-primary">Present</button>
-      </div>
     </aside>
 
     <main class="fm-main">
       <section class="fm-panel">
         <div class="fm-panel-tabs">
           <button type="button" data-flip="fm-canvas-card" data-face="front" aria-pressed="true">Beautiful Flow</button>
-          <button type="button" data-flip="fm-canvas-card" data-face="back" aria-pressed="false">Mermaid Source</button>
+          <button type="button" data-flip="fm-canvas-card" data-face="back" aria-pressed="false">Document</button>
           <div class="fm-zoom">
             <button type="button" data-action="zoom-out" aria-label="Zoom out">&minus;</button>
             <span id="fm-zoom-label">100%</span>
@@ -137,24 +139,25 @@ const STUDIO_HTML = `
           <div class="fm-face fm-face-front">
             <div class="fm-canvas" id="fm-canvas"><div class="fm-stage" id="fm-stage"></div></div>
           </div>
-          <div class="fm-face fm-face-back"><pre id="fm-mermaid-out" class="fm-code"></pre></div>
+          <div class="fm-face fm-face-back"><article id="fm-doc-out" class="fm-doc"></article></div>
         </div>
       </section>
 
       <section class="fm-panel fm-panel-editor">
         <div class="fm-panel-tabs">
-          <button type="button" data-flip="fm-editor-card" data-face="front" aria-pressed="true">Markdown</button>
-          <button type="button" data-flip="fm-editor-card" data-face="back" aria-pressed="false">Generated HTML</button>
+          <button type="button" data-pane="markdown" aria-pressed="true">Markdown</button>
+          <button type="button" data-pane="mermaid" aria-pressed="false">Mermaid</button>
+          <button type="button" data-pane="html" aria-pressed="false">Generated HTML</button>
           <div class="fm-zoom">
+            <button type="button" data-action="refresh">Refresh</button>
             <button type="button" data-action="copy-code">Copy</button>
             <button type="button" data-action="download">Download</button>
           </div>
         </div>
-        <div class="fm-flip" id="fm-editor-card" data-face="front">
-          <div class="fm-face fm-face-front">
-            <textarea id="fm-editor" spellcheck="false" aria-label="FlowMaker markdown source"></textarea>
-          </div>
-          <div class="fm-face fm-face-back"><pre id="fm-code-out" class="fm-code"></pre></div>
+        <div class="fm-panes" id="fm-panes" data-pane="markdown">
+          <textarea id="fm-editor" class="fm-pane" data-pane="markdown" spellcheck="false" aria-label="FlowMaker markdown source"></textarea>
+          <textarea id="fm-mermaid-edit" class="fm-pane" data-pane="mermaid" spellcheck="false" aria-label="Mermaid source"></textarea>
+          <pre id="fm-code-out" class="fm-pane fm-code" data-pane="html"></pre>
         </div>
       </section>
     </main>
@@ -168,6 +171,7 @@ const STUDIO_HTML = `
       <button type="button" data-action="anim-pulse">Pulse</button>
       <button type="button" data-action="anim-walkthrough">Walk</button>
       <button type="button" data-action="anim-off">Still</button>
+      <button type="button" data-action="restart" aria-label="Restart" title="Restart from the beginning">&#8635;</button>
       <button type="button" data-action="exit-present" class="fm-present-exit" aria-label="Exit presentation" title="Exit (Esc)">&times;</button>
     </div>
   </div>
@@ -175,6 +179,7 @@ const STUDIO_HTML = `
 `;
 
 export function mountStudio(root) {
+  const doc = root.ownerDocument ?? document;
   const state = {
     source: STARTER_DOC,
     overrides: loadPrefs(),
@@ -193,7 +198,9 @@ export function mountStudio(root) {
   const canvasHost = el('#fm-canvas');
   const stage = el('#fm-stage');
   const codeOut = el('#fm-code-out');
-  const mermaidOut = el('#fm-mermaid-out');
+  const docOut = el('#fm-doc-out');
+  const mermaidEdit = el('#fm-mermaid-edit');
+  const panes = el('#fm-panes');
   const warnStrip = el('#fm-warnings');
   const fmRoot = root.querySelector('.fm-root');
 
@@ -275,7 +282,10 @@ export function mountStudio(root) {
     });
     if (state.autoScroll ?? scrollDefaultFor(state.animationMode)) state.canvas.startAutoScroll();
 
-    mermaidOut.textContent = resolved.mermaidSrc;
+    // The document view is the reading counterpart to the diagram.
+    docOut.innerHTML = documentToHtml(resolved);
+    // Keep the mermaid editor in step, unless the user is typing in it.
+    if (doc.activeElement !== mermaidEdit) mermaidEdit.value = resolved.mermaidSrc;
     refreshExport();
 
     for (const b of root.querySelectorAll('[data-style]')) {
@@ -323,6 +333,7 @@ export function mountStudio(root) {
       state.scrollBeforePresent = state.autoScroll;
       setAutoScroll(true);
       root.requestFullscreen?.().catch(() => { /* denied: the in-page mode still applies */ });
+      restart();
       el('.fm-present-exit').focus();
     } else {
       setAutoScroll(state.scrollBeforePresent ?? false);
@@ -340,13 +351,33 @@ export function mountStudio(root) {
   });
 
   let debounce = null;
-  editor.addEventListener('input', () => {
+  const schedule = (fn) => {
     clearTimeout(debounce);
-    debounce = setTimeout(() => {
-      state.source = editor.value;
-      render();
-    }, 250);
-  });
+    debounce = setTimeout(fn, 250);
+  };
+
+  editor.addEventListener('input', () => schedule(() => {
+    state.source = editor.value;
+    render();
+  }));
+
+  mermaidEdit.addEventListener('input', () => schedule(() => {
+    state.source = replaceMermaidBlock(state.source, mermaidEdit.value);
+    editor.value = state.source;
+    render();
+  }));
+
+  function showPane(name) {
+    panes.dataset.pane = name;
+    for (const b of root.querySelectorAll('[data-pane]')) {
+      if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(b.dataset.pane === name));
+    }
+  }
+
+  function restart() {
+    state.canvas?.restartAutoScroll();
+    state.runtime?.restart();
+  }
 
   async function loadText(text) {
     state.source = text;
@@ -403,8 +434,26 @@ export function mountStudio(root) {
       }
       return;
     }
+    const paneBtn = e.target.closest('button[data-pane]');
+    if (paneBtn) {
+      showPane(paneBtn.dataset.pane);
+      return;
+    }
     const action = e.target.closest('[data-action]')?.dataset.action;
     if (!action) return;
+    if (action === 'refresh') {
+      clearTimeout(debounce);
+      state.source = panes.dataset.pane === 'mermaid'
+        ? replaceMermaidBlock(state.source, mermaidEdit.value)
+        : editor.value;
+      editor.value = state.source;
+      render();
+      return;
+    }
+    if (action === 'restart') {
+      restart();
+      return;
+    }
     if (action === 'zoom-in') state.canvas.zoomBy(1.2);
     if (action === 'zoom-out') state.canvas.zoomBy(1 / 1.2);
     if (action === 'fit-width') state.canvas.fitWidth();
@@ -442,6 +491,7 @@ export function mountStudio(root) {
 
   editor.value = state.source;
   render();
+  showPane('markdown');
   const api = { render, state };
   // Handy for debugging in the console and for driving the app from tests.
   if (typeof window !== 'undefined') window.__flowmaker = api;

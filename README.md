@@ -11,7 +11,7 @@ no network requests at runtime.
 
 ```bash
 node server.js                 # http://localhost:8321
-node --test 'test/*.test.js'   # 47 tests, no devDependencies
+node --test 'test/*.test.js'   # 105 tests, no devDependencies
 node build.js                  # dist/ — one self-contained file, opens by double-click
 ```
 
@@ -34,8 +34,8 @@ settings, so the Vercel dashboard preset does not matter:
 ---
 title: Order Processing
 subtitle: From cart to fulfillment
-style: infographic       # neon-circuit | executive-clean | blueprint
-                         # soft-depth | bold-brutal | infographic
+style: infographic       # neon-circuit | executive-clean | blueprint | soft-depth
+                         # bold-brutal | infographic | accent-rail
 palette: ember           # harbor | ember | forest | midnight
                          # slate | candy | mono | signal
 direction: LR            # LR | RL | TD | BT
@@ -61,21 +61,30 @@ studio reports any section that matches no node, and any node with no section.
 
 ## What it does
 
-- **Six styles** — Neon Circuit, Executive Clean, Blueprint, Soft Depth,
-  Bold Brutal, and Infographic. Any style composes with any palette.
+- **Seven styles** — Neon Circuit, Executive Clean, Blueprint, Soft Depth,
+  Bold Brutal, Infographic (outlined cards with ringed icons), and Accent Rail
+  (quiet cards with a coloured bar down the leading edge). Any style composes
+  with any palette.
 - **Four-swatch palettes** — `c1` flow, `c2` decision, `c3` accent, `c4` alert.
   Surface and text tones are derived in OKLCH, so body text always clears 7:1
   against its background and node labels always clear 4.5:1.
 - **Icons** — the Infographic style resolves an inline SVG icon per step from
   the label (`Capture Payment` → money, `Review Contract` → document), falling
-  back to the mermaid shape. Force one with `A:::icon-money`. No emoji, no icon
-  fonts, no images.
-- **Loop-backs read as loops** — cycles route through a reserved gutter beneath
-  the spine in the alert colour, each in its own lane.
+  back to the mermaid shape, and sets it in a ring. Force one with
+  `A:::icon-money`. No emoji, no icon fonts, no images.
+- **Loop-backs read as loops** — a short cycle routes through a reserved gutter
+  beneath the spine in the alert colour. A cycle spanning three or more ranks
+  becomes a matching pair of lettered connectors instead, the way an off-page
+  connector works on a flowchart, so the eye jumps rather than tracking a line
+  back across everything in between.
 - **Motion** — a traveling pulse along the edges, or a sequential walkthrough
   that lights each step in turn. Pulse also crawls the view along the flow.
   Hover, focus, or an open detail card freezes everything.
-- **Present mode** — full-screen, no interface, just the flow and an × (or Esc).
+- **Present mode** — full-screen, no interface, just the flow, a restart button,
+  and an × (or Esc). Entering it restarts the flow from the beginning.
+- **Panels** — the diagram flips to a rendered reading view of the document; the
+  editor holds the markdown, the mermaid on its own (edits splice back without
+  touching frontmatter or detail sections), and the generated export.
 - **Export** — one inline HTML file that re-runs layout on load, so the same
   file is correct on a 4K marquee and on a phone.
 

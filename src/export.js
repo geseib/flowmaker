@@ -38,16 +38,19 @@ body { margin: 0; background: var(--ground); color: var(--ink); font-family: var
 .fm-canvas { flex: 1 1 auto; }
 /* Present mode: nothing on screen but the flow and a way out. */
 .fm-root[data-present="true"] .fm-header { display: none; }
-.fm-present-exit {
+.fm-present-tools { display: none; }
+.fm-present-tools[hidden] { display: none; }
+.fm-root[data-present="true"] .fm-present-tools:not([hidden]) {
   position: fixed; top: 1rem; right: 1rem; z-index: 60;
-  width: 2.4rem; height: 2.4rem; display: none; place-items: center;
+  display: flex; gap: .4rem; opacity: .3; transition: opacity .2s ease;
+}
+.fm-present-tools:hover, .fm-present-tools:focus-within { opacity: 1 !important; }
+.fm-present-tools button {
+  width: 2.4rem; height: 2.4rem; display: grid; place-items: center;
   border-radius: 999px; cursor: pointer; font-size: 1.2rem; line-height: 1;
   border: 1px solid var(--border); background: var(--surface-2); color: var(--ink);
-  opacity: .25; transition: opacity .2s ease;
 }
-.fm-root[data-present="true"] .fm-present-exit { display: grid; }
-.fm-present-exit:hover, .fm-present-exit:focus-visible { opacity: 1; }
-.fm-present-exit:focus-visible { outline: 2px solid var(--c2); outline-offset: 2px; }
+.fm-present-tools button:focus-visible { outline: 2px solid var(--c2); outline-offset: 2px; }
 `.trim();
 
 export function buildExport(input, bundle = {}) {
@@ -98,14 +101,18 @@ export function buildExport(input, bundle = {}) {
       <button type="button" data-fm-action="anim-walk" aria-pressed="false">Walkthrough</button>
       <button type="button" data-fm-action="anim-off" aria-pressed="false">Still</button>
       <button type="button" data-fm-action="toggle-scroll" aria-pressed="false">Auto-scroll</button>
-      <button type="button" data-fm-action="present">Present</button>
+      <button type="button" data-fm-action="restart" aria-label="Restart" title="Restart from the beginning">&#8635;</button>
+      <button type="button" data-fm-action="present" aria-label="Present full screen" title="Present full screen">&#9974;</button>
       <button type="button" data-fm-action="fit-width">Fit</button>
       <button type="button" data-fm-action="zoom-out" aria-label="Zoom out">&minus;</button>
       <button type="button" data-fm-action="zoom-in" aria-label="Zoom in">+</button>
     </div>
   </header>
   <div class="fm-canvas" id="fm-canvas"><div class="fm-stage" id="fm-stage"></div></div>
-  <button type="button" class="fm-present-exit" id="fm-present-exit" data-fm-action="exit-present" aria-label="Exit presentation" title="Exit (Esc)" hidden>&times;</button>
+  <div class="fm-present-tools" id="fm-present-tools" hidden>
+    <button type="button" data-fm-action="restart" aria-label="Restart" title="Restart from the beginning">&#8635;</button>
+    <button type="button" data-fm-action="exit-present" aria-label="Exit presentation" title="Exit (Esc)">&times;</button>
+  </div>
 </div>
 <script>window.__FLOWMAKER_DATA__ = ${safeJson(data)};</script>
 <script>${(bundle.runtimeJs ?? '').replace(/<\/(script)/gi, '<\\/$1')}</script>

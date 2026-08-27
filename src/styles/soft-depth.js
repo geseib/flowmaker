@@ -25,6 +25,8 @@ export default {
 .fm-node-rule { stroke: var(--border); stroke-width: var(--stroke); }
 .fm-node-label { fill: var(--ink); font-size: ${spec.fontSize}px; font-weight: 600; letter-spacing: -.005em; }
 .fm-node-icon { display: none; }
+.fm-node-badge { display: none; }
+.fm-node-rail { display: none; }
 .fm-node[data-has-detail="true"] { cursor: pointer; }
 .fm-node:hover .fm-node-shape, .fm-node:focus-visible .fm-node-shape { filter: drop-shadow(0 2px 4px rgb(0 0 0 / .14)) drop-shadow(0 20px 44px rgb(0 0 0 / .2)); }
 .fm-node:focus-visible { outline: none; }
@@ -39,5 +41,7 @@ export default {
 .fm-edge-label-bg { fill: var(--surface); }
 .fm-arrow { fill: var(--c1); }
 .fm-arrow-alert { fill: var(--c4); }
+.fm-wrap-tag circle { fill: var(--ground); stroke: var(--c4); stroke-width: var(--stroke); }
+.fm-wrap-tag-text { fill: var(--c4); font-size: ${spec.labelFontSize + 2}px; font-weight: 800; letter-spacing: .04em; }
 `.trim(),
 };

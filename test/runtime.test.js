@@ -38,8 +38,14 @@ test('an open card pauses motion and suppresses the tooltip behind it', () => {
   assert.equal(tooltipTargetId(s), null, 'the tooltip must not show through the card');
 });
 
-test('focus alone pauses motion, so a keyboard user is not chasing a moving diagram', () => {
-  assert.equal(shouldPauseMotion(state({ focusedId: 'A' })), true);
+test('keyboard focus pauses motion, so a keyboard user is not chasing a moving diagram', () => {
+  assert.equal(shouldPauseMotion(state({ focusedId: 'A', keyboardNav: true })), true);
+});
+
+test('focus left behind by a mouse interaction does NOT pause motion', () => {
+  // The reported bug: closing a card returns focus to its node, and treating
+  // that as a reason to stay paused froze the flow with nothing to explain it.
+  assert.equal(shouldPauseMotion(state({ focusedId: 'A', keyboardNav: false })), false);
 });
 
 test('keyboard navigation shows a tooltip on the focused step', () => {
@@ -87,12 +93,15 @@ test('the full hover to card to close sequence ends unpaused with no tooltip', (
 
   s.modalOpen = false;
   s.suppressFocusTooltip = true;
-  s.focusedId = 'A'; // focus restored to the node
+  s.focusedId = 'A'; // focus restored to the node by closing the card
 
   assert.equal(tooltipTargetId(s), null, 'no stuck tooltip');
-  assert.equal(shouldPauseMotion(s), true, 'focus still holds the pause');
+  assert.equal(shouldPauseMotion(s), false, 'the flow moves again immediately');
+});
 
-  s.focusedId = null; // focus leaves as the user clicks elsewhere
-  assert.equal(shouldPauseMotion(s), false, 'motion resumes');
-  assert.equal(tooltipTargetId(s), null);
+test('a keyboard user keeps the pause after closing a card', () => {
+  // The mirror case: someone who tabbed in and pressed Escape is still reading,
+  // so the diagram should stay still under their focus.
+  const s = state({ focusedId: 'A', keyboardNav: true, suppressFocusTooltip: true });
+  assert.equal(shouldPauseMotion(s), true);
 });

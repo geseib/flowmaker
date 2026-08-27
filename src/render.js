@@ -73,6 +73,24 @@ function wrapLabel(label, n, spec) {
   return lines.length ? lines : [''];
 }
 
+// Shapes that can carry an accent rail down their leading edge. A straight bar
+// against a diamond or a circle reads as a rendering fault, so they are excluded.
+// Icon ring radius as a fraction of the icon box.
+const RING_RATIO = 0.72;
+
+const RAIL_SHAPES = new Set(['rect', 'round', 'subroutine', 'parallelogram', 'trapezoid']);
+
+// Emitted for every style; only the styles that want it un-hide it in CSS.
+function railMarkup(n, spec) {
+  if (!RAIL_SHAPES.has(n.shape)) return '';
+  const w = Math.max(5, spec.stroke * 3.2);
+  const r = Math.min(spec.corner, w);
+  const { x, y, h } = n;
+  const d = `M ${x + r} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x + r} ${y + h}`
+    + ` Q ${x} ${y + h} ${x} ${y + h - r} L ${x} ${y + r} Q ${x} ${y} ${x + r} ${y} Z`;
+  return `<path class="fm-node-rail" d="${d}"/>`;
+}
+
 // The icon anchors to the top of the node and reports where it ends, so the
 // label can be centred in the space beneath it rather than fighting it for the
 // middle. Layout has already reserved the height (see layout.js iconSpace).
@@ -82,9 +100,15 @@ function iconMarkup(n, spec, iconName) {
   const scale = size / 24;
   const top = n.y + spec.padY * 0.6;
   const x = n.x + n.w / 2 - size / 2;
+  // A ring behind the icon, for styles that want the badge treatment. Hidden
+  // by default like the rail.
+  // The ring is wider than the glyph, so it — not the glyph — defines where the
+  // label may begin. RING_RATIO is kept in step with the space layout reserves.
+  const badge = `<circle class="fm-node-badge" cx="${(n.x + n.w / 2).toFixed(2)}" cy="${(top + size / 2).toFixed(2)}" r="${(size * RING_RATIO).toFixed(2)}"/>`;
   return {
-    markup: `<g class="fm-node-icon" aria-hidden="true" transform="translate(${x.toFixed(2)} ${top.toFixed(2)}) scale(${scale.toFixed(4)})">${ICONS[iconName]}</g>`,
-    bottom: top + size,
+    markup: badge
+      + `<g class="fm-node-icon" aria-hidden="true" transform="translate(${x.toFixed(2)} ${top.toFixed(2)}) scale(${scale.toFixed(4)})">${ICONS[iconName]}</g>`,
+    bottom: top + size / 2 + size * RING_RATIO,
   };
 }
 
@@ -112,6 +136,7 @@ function nodeMarkup(n, spec, details, showIcons) {
     detail ? ' data-has-detail="true"' : '',
     ` tabindex="0" role="button" aria-label="${esc(name)}">`,
     shapeMarkup(n, spec),
+    railMarkup(n, spec),
     icon.markup,
     `<text class="fm-node-label" text-anchor="middle" dominant-baseline="middle">${tspans}</text>`,
     '</g>',
@@ -124,16 +149,29 @@ function edgeMarkup(e, spec) {
     `data-edge="${esc(e.from)}__${esc(e.to)}"`,
     `data-kind="${e.kind}"`,
     e.isBackEdge ? 'data-back="true"' : '',
+    e.isWrap ? 'data-wrap="true"' : '',
     e.arrow === 'none' ? '' : `marker-end="url(#${marker})"`,
     e.arrow === 'bidirectional' ? `marker-start="url(#${marker}-start)"` : '',
   ].filter(Boolean).join(' ');
   const path = `<path class="fm-edge" d="${e.path}" ${attrs}/>`;
-  if (!e.label) return path;
+
+  // A long loop is drawn as a matching pair of tagged connectors instead of one
+  // line dragged across the diagram. The shared letter is what links them.
+  const tags = (e.wrapTags ?? []).map((t) => {
+    const r = e.tagRadius ?? spec.fontSize * 0.78;
+    return `<g class="fm-wrap-tag" data-role="${t.role}" data-tag="${esc(t.tag)}">`
+      + `<circle cx="${t.x}" cy="${t.y}" r="${r}"/>`
+      + `<text class="fm-wrap-tag-text" x="${t.x}" y="${t.y}" text-anchor="middle" dominant-baseline="central">${esc(t.tag)}</text>`
+      + '</g>';
+  }).join('');
+
+  if (!e.label) return path + tags;
   const halfW = e.label.length * spec.labelFontSize * 0.32 + 8;
   const halfH = spec.labelFontSize * 0.85;
   return path
     + `<rect class="fm-edge-label-bg" x="${e.labelPos.x - halfW}" y="${e.labelPos.y - halfH}" width="${halfW * 2}" height="${halfH * 2}" rx="4"/>`
-    + `<text class="fm-edge-label" x="${e.labelPos.x}" y="${e.labelPos.y}" text-anchor="middle" dominant-baseline="middle">${esc(e.label)}</text>`;
+    + `<text class="fm-edge-label" x="${e.labelPos.x}" y="${e.labelPos.y}" text-anchor="middle" dominant-baseline="middle">${esc(e.label)}</text>`
+    + tags;
 }
 
 export function styleCss(styleKey, tokens, densityKey) {

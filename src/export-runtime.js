@@ -56,10 +56,11 @@ export function bootExport() {
   let scrollBeforePresent = false;
   const setPresenting = (on) => {
     root.dataset.present = String(on);
-    root.querySelector('#fm-present-exit').hidden = !on;
+    root.querySelector('#fm-present-tools').hidden = !on;
     if (on) {
       scrollBeforePresent = canvas.isAutoScrolling();
       setScroll(true);
+      restart();
       root.requestFullscreen?.().catch(() => { /* denied: in-page mode still applies */ });
     } else {
       setScroll(scrollBeforePresent);
@@ -76,6 +77,11 @@ export function bootExport() {
   });
 
   if (data.autoScroll ?? data.animationMode === 'pulse') setScroll(true);
+
+  const restart = () => {
+    canvas.restartAutoScroll();
+    runtime.restart();
+  };
 
   const setPressed = (action) => {
     for (const b of root.querySelectorAll('[data-fm-action^="anim-"]')) {
@@ -94,6 +100,7 @@ export function bootExport() {
     if (action === 'zoom-in') canvas.zoomBy(1.2);
     if (action === 'zoom-out') canvas.zoomBy(1 / 1.2);
     if (action === 'toggle-scroll') setScroll(!canvas.isAutoScrolling());
+    if (action === 'restart') restart();
     if (action === 'present') setPresenting(true);
     if (action === 'exit-present') setPresenting(false);
   });

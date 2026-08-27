@@ -31,9 +31,8 @@ export const CANVAS_CSS = `
 `.trim();
 
 const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
-// How long to wait for a first animation frame before assuming the page is not
-// being painted, and the interval the fallback driver runs at.
-const FRAME_WAIT_MS = 400;
+// The crawl's tick interval. Sixty pixels a second at 30Hz is two pixels a
+// tick, which is smooth enough for a slow travel and cheap enough to leave on.
 const TIMER_INTERVAL_MS = 33;
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
@@ -159,7 +158,6 @@ export function createCanvas(container, model, opts = {}) {
 
   // Continuous horizontal crawl for long flows. Ping-pongs rather than jumping
   // back to the start, because a hard jump reads as a glitch on a booth screen.
-  let scrollRAF = null;
   let scrollDir = 1;
   let holdUntil = 0;
   let lastFrame = 0;
@@ -170,15 +168,10 @@ export function createCanvas(container, model, opts = {}) {
   // Accumulate the true position here and write the rounded value out.
   let scrollPos = 0;
   let scrollTimer = null;
-  let fallbackCheck = null;
-  let sawFrame = false;
 
   const scrollAxis = () => (model.direction === 'TD' || model.direction === 'BT' ? 'top' : 'left');
 
   function scrollFrame(now) {
-    sawFrame = true;
-    // Only the rAF driver reschedules itself; the timer driver repeats on its own.
-    if (scrollTimer === null) scrollRAF = requestAnimationFrame(scrollFrame);
     if (scrollPaused) { lastFrame = now; return; }
     const dt = lastFrame ? Math.min(0.05, (now - lastFrame) / 1000) : 0;
     lastFrame = now;
@@ -210,34 +203,27 @@ export function createCanvas(container, model, opts = {}) {
     else container.scrollTop = Math.round(scrollPos);
   }
 
-  // requestAnimationFrame is the right driver when the page is being painted,
-  // but a browser that considers the window occluded (a kiosk behind another
-  // window, some secondary-display setups) stops delivering frames entirely and
-  // the crawl would silently freeze. Fall back to a timer when no frame arrives.
+  // Driven by a plain interval rather than requestAnimationFrame. rAF stops
+  // being delivered whenever the browser thinks the page is not being painted
+  // (an occluded window, a background tab, some kiosk and secondary-display
+  // setups), and an rAF-with-timer-fallback races on which one starts first, so
+  // the crawl worked or did not depending on timing. One timer is predictable,
+  // and the step size comes from the measured elapsed time, so the speed stays
+  // correct even when the interval itself is throttled.
   function startAutoScroll() {
     scrollWanted = true;
     container.dataset.autoscroll = 'true';
-    if (scrollRAF !== null || scrollTimer !== null) return;
+    if (scrollTimer !== null) return;
     lastFrame = 0;
     holdUntil = 0;
-    sawFrame = false;
     scrollPos = scrollAxis() === 'left' ? container.scrollLeft : container.scrollTop;
-    scrollRAF = requestAnimationFrame(scrollFrame);
-    fallbackCheck = setTimeout(() => {
-      fallbackCheck = null;
-      if (!scrollWanted || sawFrame) return;
-      if (scrollRAF !== null) { cancelAnimationFrame(scrollRAF); scrollRAF = null; }
-      lastFrame = 0;
-      scrollTimer = setInterval(() => scrollFrame(nowMs()), TIMER_INTERVAL_MS);
-    }, FRAME_WAIT_MS);
+    scrollTimer = setInterval(() => scrollFrame(nowMs()), TIMER_INTERVAL_MS);
   }
 
   function stopAutoScroll() {
     scrollWanted = false;
     container.dataset.autoscroll = 'false';
-    if (scrollRAF !== null) { cancelAnimationFrame(scrollRAF); scrollRAF = null; }
     if (scrollTimer !== null) { clearInterval(scrollTimer); scrollTimer = null; }
-    if (fallbackCheck !== null) { clearTimeout(fallbackCheck); fallbackCheck = null; }
   }
 
   const onResize = () => {
@@ -311,6 +297,15 @@ export function createCanvas(container, model, opts = {}) {
     },
     startAutoScroll,
     stopAutoScroll,
+    // Send the view back to the start and travel forward again.
+    restartAutoScroll() {
+      scrollPos = 0;
+      scrollDir = 1;
+      holdUntil = 0;
+      lastFrame = 0;
+      container.scrollLeft = 0;
+      container.scrollTop = 0;
+    },
     isAutoScrolling: () => scrollWanted,
     destroy() {
       stopAutoScroll();

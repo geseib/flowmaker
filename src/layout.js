@@ -4,6 +4,11 @@ import { iconFor } from './icons.js';
 export { DENSITY };
 
 const SUBGRAPH_PAD = 26;
+// A loop that travels back more than this many ranks is drawn as a pair of
+// tagged connectors rather than one long line dragged across the whole
+// diagram. Short loops still read better as an actual line.
+const WRAP_MIN_SPAN = 3;
+const WRAP_TAGS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split('');
 const SUBGRAPH_HEADER = 30;
 
 const round = (n) => Math.round(n * 100) / 100;
@@ -179,7 +184,9 @@ export function layout(graph, opts = {}) {
   // The icon sits above the label, so the node has to grow to hold both.
   // Reserving it here (rather than in the renderer) is what keeps the label
   // from colliding with the glyph.
-  const iconSpace = opts.iconSpace ? spec.fontSize * 1.5 + spec.padY * 0.95 : 0;
+  // fontSize * 1.5 is the icon box; the ring around it reaches 1.22x that
+  // (see RING_RATIO in render.js), and the rest is breathing room.
+  const iconSpace = opts.iconSpace ? spec.fontSize * 1.5 * 1.22 + spec.padY * 0.95 : 0;
 
   for (const n of nodes) {
     const base = measure(n.label, spec);
@@ -281,6 +288,10 @@ export function layout(graph, opts = {}) {
   const reversed = direction === 'RL' || direction === 'BT';
 
   let backIndex = 0;
+  let wrapIndex = 0;
+  const tagRadius = spec.fontSize * 0.78;
+  const wrapLane = nodeBottom + gutter * 0.45 + tagRadius;
+
   const edges = (graph.edges ?? []).map((e) => {
     const from = nodeById.get(e.from);
     const to = nodeById.get(e.to);
@@ -299,9 +310,32 @@ export function layout(graph, opts = {}) {
         { x: from.x + from.w * 0.7, y: from.y + from.h + drop },
         { x: from.x + from.w * 0.7, y: from.y + from.h },
       ];
+    } else if (isBackEdge && Math.abs((from.rank ?? 0) - (to.rank ?? 0)) >= WRAP_MIN_SPAN) {
+      // A long loop: drop a tagged connector below the source and a matching one
+      // below the target, the way an off-page connector works on a flowchart.
+      // Both carry the same letter, so the eye jumps instead of tracking a line
+      // back across everything in between.
+      const tag = WRAP_TAGS[wrapIndex % WRAP_TAGS.length];
+      wrapIndex += 1;
+      const out = { x: a.bottom.x, y: wrapLane };
+      const into = { x: b.bottom.x, y: wrapLane };
+      return {
+        ...e,
+        isBackEdge: true,
+        isWrap: true,
+        tag,
+        path: `M ${round(a.bottom.x)} ${round(a.bottom.y)} L ${round(out.x)} ${round(out.y - tagRadius)}`
+          + ` M ${round(into.x)} ${round(into.y - tagRadius)} L ${round(b.bottom.x)} ${round(b.bottom.y)}`,
+        wrapTags: [
+          { ...out, tag, role: 'out' },
+          { ...into, tag, role: 'in' },
+        ],
+        tagRadius: round(tagRadius),
+        labelPos: { x: round(out.x), y: round(out.y + tagRadius * 1.9) },
+      };
     } else if (isBackEdge) {
-      // Dip into the reserved gutter beneath every node, travel against the
-      // flow, and rise into the target. Each back edge gets its own lane.
+      // A short loop still reads best as a real line: dip into the reserved
+      // gutter, travel against the flow, and rise into the target.
       const lane = nodeBottom + gutter * 0.5 + backIndex * (spec.laneGap * 0.8);
       backIndex += 1;
       points = [a.bottom, { x: a.bottom.x, y: lane }, { x: b.bottom.x, y: lane }, b.bottom];
@@ -320,12 +354,14 @@ export function layout(graph, opts = {}) {
     return {
       ...e,
       isBackEdge,
+      isWrap: false,
       path: roundedPath(points, Math.min(spec.corner * 1.5, 26)),
       labelPos: { x: round((midPoint.x + prevPoint.x) / 2), y: round((midPoint.y + prevPoint.y) / 2) },
     };
   });
 
   const backDepth = backIndex > 0 ? gutter * 0.5 + backIndex * (spec.laneGap * 0.8) + spec.laneGap : 0;
+  const wrapDepth = wrapIndex > 0 ? gutter * 0.45 + tagRadius * 3.4 + spec.laneGap : 0;
   const selfDepth = edges.some((e) => e.from === e.to) ? spec.nodeH : 0;
 
   return {
@@ -336,7 +372,7 @@ export function layout(graph, opts = {}) {
     density: densityKey,
     bounds: {
       w: round(nodeRight + spec.laneGap),
-      h: round(nodeBottom + Math.max(backDepth, selfDepth) + spec.laneGap),
+      h: round(nodeBottom + Math.max(backDepth, wrapDepth, selfDepth) + spec.laneGap),
     },
   };
 }

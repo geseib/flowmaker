@@ -146,6 +146,42 @@ function parseDetails(lines, warnings) {
   return details;
 }
 
+// Writes a new mermaid body back into the document, leaving the frontmatter and
+// every detail section untouched. This is what lets the mermaid be edited on its
+// own without round-tripping the whole file through a formatter.
+export function replaceMermaidBlock(mdText, nextSrc) {
+  const text = String(mdText ?? '').replace(/\r\n?/g, '\n');
+  const body = String(nextSrc ?? '').replace(/\r\n?/g, '\n').trim();
+  const lines = text.split('\n');
+
+  let fence = null;
+  let start = -1;
+  for (let i = 0; i < lines.length; i += 1) {
+    const open = lines[i].match(/^([ \t]*)(`{3,}|~{3,})[ \t]*([^`\s]*)[ \t]*$/);
+    if (fence === null && open && open[3].toLowerCase() === 'mermaid') {
+      fence = open[2];
+      start = i;
+      continue;
+    }
+    if (fence !== null) {
+      const close = lines[i].match(/^[ \t]*(`{3,}|~{3,})[ \t]*$/);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) {
+        return [...lines.slice(0, start + 1), ...body.split('\n'), ...lines.slice(i)].join('\n');
+      }
+    }
+  }
+
+  // No block to replace: append one, after the frontmatter if there is any.
+  const fenced = ['```mermaid', ...body.split('\n'), '```'];
+  if (lines[0]?.trim() === '---') {
+    const close = lines.findIndex((line, i) => i > 0 && line.trim() === '---');
+    if (close !== -1) {
+      return [...lines.slice(0, close + 1), '', ...fenced, ...lines.slice(close + 1)].join('\n');
+    }
+  }
+  return [...fenced, '', ...lines].join('\n');
+}
+
 export function parseDocument(mdText) {
   const warnings = [];
   const lines = String(mdText ?? '').replace(/\r\n?/g, '\n').split('\n');

@@ -164,6 +164,10 @@ export function createAnimator(root, model, opts = {}) {
       root.dataset.paused = 'false';
       startTimer();
     },
+    restart() {
+      state.activeIndex = state.mode === 'walkthrough' ? 0 : -1;
+      applyMode();
+    },
     next() {
       state.activeIndex = (state.activeIndex + 1) % Math.max(1, order.length);
       paintWalk();
