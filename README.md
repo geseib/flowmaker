@@ -11,7 +11,7 @@ no network requests at runtime.
 
 ```bash
 node server.js                 # http://localhost:8321
-node --test 'test/*.test.js'   # 147 tests, no devDependencies
+node --test 'test/*.test.js'   # 166 tests, no devDependencies
 node build.js                  # dist/ — one self-contained file, opens by double-click
 ```
 
@@ -97,6 +97,10 @@ studio reports any section that matches no node, and any node with no section.
   step's detail). The editor below holds the markdown, the mermaid on its own
   (edits splice back without touching frontmatter or detail sections), and the
   generated export.
+- **Auto-scroll loops** — the flow travels one way and wraps: it leaves one
+  edge and comes straight back in at the other, with no reverse and no jump.
+  The scroller is padded by exactly one viewport on each side, so the last pixel
+  clears the leading edge as the first pixel arrives at the trailing one.
 - **Walkthrough follows the view** — the active step is centred, and scrolling
   the canvas by hand moves the highlight to whatever you scrolled to and holds
   the auto-advance while you look around.

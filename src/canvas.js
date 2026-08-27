@@ -27,7 +27,8 @@ export const CANVAS_CSS = `
   touch-action: pan-x pan-y;
 }
 .fm-canvas[data-panning="true"] { cursor: grabbing; user-select: none; }
-.fm-stage { transform-origin: 0 0; will-change: transform; margin: auto; }
+/* content-box so the loop spacing sits outside the diagram's own width. */
+.fm-stage { box-sizing: content-box; transform-origin: 0 0; will-change: transform; margin: auto; }
 .fm-canvas svg { display: block; overflow: visible; }
 .fm-canvas::-webkit-scrollbar { height: 12px; width: 12px; }
 .fm-canvas::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
@@ -74,14 +75,30 @@ export function nearestNodeId(nodes, view) {
 //   speed    pixels per second
 //   now      current timestamp in ms
 //   holdUntil timestamp before which the crawl waits at an end
-export function advanceScroll({ pos, dir, max, dt, speed, now, holdUntil }) {
-  if (max <= 1) return { pos, dir, holdUntil, moved: false };
-  if (now < holdUntil) return { pos, dir, holdUntil, moved: false };
+export function advanceScroll({ pos, dir, max, dt, speed, now, holdUntil, mode = 'loop' }) {
+  if (max <= 1) return { pos, dir, holdUntil, moved: false, wrapped: false };
+  if (now < holdUntil) return { pos, dir, holdUntil, moved: false, wrapped: false };
 
   let next = pos + dir * speed * dt;
+
+  if (mode === 'loop') {
+    // Always travels one way. The scroller is padded by a viewport on each
+    // side, so at max the diagram has just cleared the leading edge and at 0 it
+    // is exactly at the trailing edge: resetting there continues the motion
+    // rather than jumping. Carrying the remainder keeps the speed even.
+    let wrapped = false;
+    if (next >= max) {
+      next -= max;
+      wrapped = true;
+    } else if (next < 0) {
+      next += max;
+      wrapped = true;
+    }
+    return { pos: next, dir, holdUntil, moved: true, wrapped };
+  }
+
   let nextDir = dir;
   let nextHold = holdUntil;
-
   if (next >= max) {
     next = max;
     nextDir = -1;
@@ -91,7 +108,7 @@ export function advanceScroll({ pos, dir, max, dt, speed, now, holdUntil }) {
     nextDir = 1;
     nextHold = now + SCROLL_HOLD_MS;
   }
-  return { pos: next, dir: nextDir, holdUntil: nextHold, moved: true };
+  return { pos: next, dir: nextDir, holdUntil: nextHold, moved: true, wrapped: false };
 }
 
 export function fitScale(bounds, viewport, mode = 'both') {
@@ -131,6 +148,9 @@ export function createCanvas(container, model, opts = {}) {
   }
 
   const viewport = () => ({ w: container.clientWidth, h: container.clientHeight });
+  // Where the diagram actually starts, including any loop spacing on the stage.
+  const contentLeft = () => stage.offsetLeft + (parseFloat(stage.style.paddingLeft) || 0);
+  const contentTop = () => stage.offsetTop + (parseFloat(stage.style.paddingTop) || 0);
 
   const NO_PAN = '.fm-node, .fm-modal-backdrop, .fm-tooltip, button, a, input, select, textarea';
 
@@ -217,14 +237,46 @@ export function createCanvas(container, model, opts = {}) {
   // rounds to whole pixels, so the movement would be discarded every frame.
   // Accumulate the true position here and write the rounded value out.
   let scrollPos = 0;
+  let scrollMode = opts.scrollMode ?? 'loop';
   let scrollTimer = null;
 
   const scrollAxis = () => (model.direction === 'TD' || model.direction === 'BT' ? 'top' : 'left');
+
+  // A viewport of blank space on each side of the diagram. It is what lets the
+  // flow run off one edge and come back in at the other without a jump, and it
+  // is only applied while the crawl is running so manual scrolling is not
+  // padded with dead space.
+  function applyLoopPadding(on) {
+    if (!on) {
+      stage.style.padding = '';
+      return;
+    }
+    const axis = scrollAxis();
+    const need = axis === 'left' ? container.clientWidth : container.clientHeight;
+    if (need <= 0) return;
+
+    // The padding has to equal the viewport exactly: max then works out to the
+    // diagram's length plus one viewport, which is what makes resetting to zero
+    // continue the motion instead of jumping. It is checked every tick because
+    // the panel is often not laid out yet when the crawl starts, and a
+    // ResizeObserver does not fire for that: the element's own box never
+    // changed, only the space around it.
+    const current = axis === 'left'
+      ? parseFloat(stage.style.paddingLeft) || 0
+      : parseFloat(stage.style.paddingTop) || 0;
+    if (Math.abs(current - need) < 1) return;
+
+    stage.style.padding = axis === 'left' ? `0 ${need}px` : `${need}px 0`;
+    // Shift with it, so the diagram does not jump when the spacing changes.
+    scrollPos += need - current;
+  }
 
   function scrollFrame(now) {
     if (scrollPaused) { lastFrame = now; return; }
     const dt = lastFrame ? Math.min(0.05, (now - lastFrame) / 1000) : 0;
     lastFrame = now;
+    if (scrollMode === 'loop') applyLoopPadding(true);
+
     const axis = scrollAxis();
     const actual = axis === 'left' ? container.scrollLeft : container.scrollTop;
     const max = axis === 'left'
@@ -243,6 +295,7 @@ export function createCanvas(container, model, opts = {}) {
       speed: SCROLL_PX_PER_SEC[model.density] ?? SCROLL_PX_PER_SEC.standard,
       now,
       holdUntil,
+      mode: scrollMode,
     });
     scrollPos = step.pos;
     scrollDir = step.dir;
@@ -266,6 +319,7 @@ export function createCanvas(container, model, opts = {}) {
     if (scrollTimer !== null) return;
     lastFrame = 0;
     holdUntil = 0;
+    applyLoopPadding(scrollMode === 'loop');
     scrollPos = scrollAxis() === 'left' ? container.scrollLeft : container.scrollTop;
     scrollTimer = setInterval(() => scrollFrame(nowMs()), TIMER_INTERVAL_MS);
   }
@@ -275,6 +329,7 @@ export function createCanvas(container, model, opts = {}) {
     container.dataset.autoscroll = 'false';
     if (scrollTimer !== null) { clearInterval(scrollTimer); scrollTimer = null; }
     if (dragResume !== null) { clearTimeout(dragResume); dragResume = null; }
+    applyLoopPadding(false);
     pausedBy.drag = false;
     syncScrollPause();
   }
@@ -290,6 +345,7 @@ export function createCanvas(container, model, opts = {}) {
   };
 
   const onResize = () => {
+    if (scrollWanted && scrollMode === 'loop') applyLoopPadding(true);
     if (!autoFitDone && container.clientWidth > 1 && container.clientHeight > 1) {
       autoFitDone = true;
       if (opts.autoFit !== false) {
@@ -350,8 +406,8 @@ export function createCanvas(container, model, opts = {}) {
     // and the active step drifts off screen.
     scrollToNode(node, { instant = false } = {}) {
       if (!node) return;
-      const left = stage.offsetLeft + node.x * zoom - container.clientWidth / 2 + (node.w * zoom) / 2;
-      const top = stage.offsetTop + node.y * zoom - container.clientHeight / 2 + (node.h * zoom) / 2;
+      const left = contentLeft() + node.x * zoom - container.clientWidth / 2 + (node.w * zoom) / 2;
+      const top = contentTop() + node.y * zoom - container.clientHeight / 2 + (node.h * zoom) / 2;
       programmaticUntil = nowMs() + PROGRAMMATIC_SCROLL_MS;
       container.scrollTo({
         left: Math.max(0, left),
@@ -366,8 +422,8 @@ export function createCanvas(container, model, opts = {}) {
         scrollTop: container.scrollTop,
         clientWidth: container.clientWidth,
         clientHeight: container.clientHeight,
-        stageLeft: stage.offsetLeft,
-        stageTop: stage.offsetTop,
+        stageLeft: contentLeft(),
+        stageTop: contentTop(),
         zoom,
         horizontal: horizontalFlow,
       });
@@ -386,6 +442,13 @@ export function createCanvas(container, model, opts = {}) {
     },
     startAutoScroll,
     stopAutoScroll,
+    setScrollMode(mode) {
+      scrollMode = mode === 'bounce' ? 'bounce' : 'loop';
+      if (scrollWanted) {
+        stopAutoScroll();
+        startAutoScroll();
+      }
+    },
     // Send the view back to the start and travel forward again.
     restartAutoScroll() {
       scrollPos = 0;

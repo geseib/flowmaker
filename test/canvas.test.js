@@ -51,8 +51,10 @@ test('the canvas css defines pan, scroll, and the narrow breakpoint', () => {
 // --- the auto-scroll crawl -------------------------------------------------
 
 const step = (over = {}) => advanceScroll({
-  pos: 0, dir: 1, max: 1000, dt: 1 / 60, speed: 60, now: 1000, holdUntil: 0, ...over,
+  pos: 0, dir: 1, max: 1000, dt: 1 / 60, speed: 60, now: 1000, holdUntil: 0,
+  mode: 'bounce', ...over,
 });
+const loopStep = (over = {}) => step({ mode: 'loop', ...over });
 
 test('the crawl advances by speed times elapsed time', () => {
   const r = step();
@@ -107,7 +109,50 @@ test('a flow that fits entirely on screen never crawls', () => {
   assert.equal(r.pos, 0);
 });
 
-test('the crawl ping-pongs rather than running away', () => {
+// --- the wrap-around loop --------------------------------------------------
+
+test('the loop keeps travelling one way and wraps at the end', () => {
+  const r = loopStep({ pos: 999.5, dt: 1, speed: 60 });
+  assert.equal(r.wrapped, true);
+  assert.equal(r.dir, 1, 'it never reverses');
+  assert.ok(r.pos < 100, `should have come back round to the start, got ${r.pos}`);
+});
+
+test('wrapping carries the remainder so the speed stays even', () => {
+  // 999 + 60 = 1059, which is 59 past a max of 1000.
+  const r = loopStep({ pos: 999, dt: 1, speed: 60 });
+  assert.ok(Math.abs(r.pos - 59) < 0.001, `expected the 59px remainder, got ${r.pos}`);
+});
+
+test('the loop never holds, so the flow keeps moving', () => {
+  const r = loopStep({ pos: 999.9, dt: 1, speed: 60, now: 5000 });
+  assert.equal(r.holdUntil, 0, 'a loop has no pause at the ends');
+  assert.equal(r.moved, true);
+});
+
+test('a full loop covers the whole travel and returns to where it started', () => {
+  let pos = 0;
+  let wraps = 0;
+  const max = 600;
+  const speed = 300;
+  const dt = 1 / 60;
+  // Two full cycles at 300px/s over 600px is four seconds.
+  for (let i = 0; i < 60 * 4; i += 1) {
+    const r = advanceScroll({ pos, dir: 1, max, dt, speed, now: i, holdUntil: 0, mode: 'loop' });
+    if (r.wrapped) wraps += 1;
+    pos = r.pos;
+    assert.ok(pos >= 0 && pos < max, `escaped the range at ${pos}`);
+  }
+  assert.equal(wraps, 2, `expected two wraps, saw ${wraps}`);
+  assert.ok(pos < 5, `should be back near the start, got ${pos}`);
+});
+
+test('a flow that fits on screen still never crawls, in either mode', () => {
+  assert.equal(loopStep({ max: 0 }).moved, false);
+  assert.equal(step({ max: 0 }).moved, false);
+});
+
+test('bounce mode ping-pongs rather than running away', () => {
   let pos = 0;
   let dir = 1;
   let holdUntil = 0;
@@ -115,7 +160,7 @@ test('the crawl ping-pongs rather than running away', () => {
   let reversals = 0;
   for (let i = 0; i < 4000; i += 1) {
     now += 16;
-    const r = advanceScroll({ pos, dir, max: 500, dt: 0.016, speed: 300, now, holdUntil });
+    const r = advanceScroll({ pos, dir, max: 500, dt: 0.016, speed: 300, now, holdUntil, mode: 'bounce' });
     if (r.dir !== dir) reversals += 1;
     pos = r.pos;
     dir = r.dir;
