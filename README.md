@@ -11,7 +11,7 @@ no network requests at runtime.
 
 ```bash
 node server.js                 # http://localhost:8321
-node --test 'test/*.test.js'   # 105 tests, no devDependencies
+node --test 'test/*.test.js'   # 134 tests, no devDependencies
 node build.js                  # dist/ — one self-contained file, opens by double-click
 ```
 
@@ -40,6 +40,7 @@ palette: ember           # harbor | ember | forest | midnight
                          # slate | candy | mono | signal
 direction: LR            # LR | RL | TD | BT
 density: marquee         # marquee | standard | compact
+loops: auto              # auto | line | wrap
 ---
 
 ```mermaid
@@ -76,15 +77,16 @@ studio reports any section that matches no node, and any node with no section.
   beneath the spine in the alert colour. A cycle spanning three or more ranks
   becomes a matching pair of lettered connectors instead, the way an off-page
   connector works on a flowchart, so the eye jumps rather than tracking a line
-  back across everything in between.
+  back across everything in between. `loops` forces one or the other.
 - **Motion** — a traveling pulse along the edges, or a sequential walkthrough
   that lights each step in turn. Pulse also crawls the view along the flow.
   Hover, focus, or an open detail card freezes everything.
 - **Present mode** — full-screen, no interface, just the flow, a restart button,
   and an × (or Esc). Entering it restarts the flow from the beginning.
-- **Panels** — the diagram flips to a rendered reading view of the document; the
-  editor holds the markdown, the mermaid on its own (edits splice back without
-  touching frontmatter or detail sections), and the generated export.
+- **Panels** — the diagram flips to a rendered reading view: the flow itself
+  followed by every step's detail. The editor holds the markdown, the mermaid on
+  its own (edits splice back without touching frontmatter or detail sections),
+  and the generated export.
 - **Export** — one inline HTML file that re-runs layout on load, so the same
   file is correct on a 4K marquee and on a phone.
 

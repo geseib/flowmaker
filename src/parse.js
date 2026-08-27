@@ -1,4 +1,4 @@
-const META_KEYS = ['title', 'subtitle', 'style', 'palette', 'direction', 'density'];
+const META_KEYS = ['title', 'subtitle', 'style', 'palette', 'direction', 'density', 'loops'];
 
 // Matches "## A — Title", "## A – Title", "## A - Title", or a bare "## A".
 const HEADING_RE = /^##[ \t]+(.+?)(?:[ \t]*[—–][ \t]*|[ \t]+-[ \t]+)(.*)$/;

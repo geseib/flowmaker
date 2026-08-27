@@ -38,7 +38,20 @@ function unquote(text) {
 // Reads one node reference starting at `i`.
 function readNode(line, i) {
   let j = i;
-  while (j < line.length && /[A-Za-z0-9_.\-]/.test(line[j])) j += 1;
+  // Node ids may contain hyphens, but a hyphen that begins a connector
+  // (`-->`, `---`, `-.->`) belongs to the edge, not the id. Without this,
+  // `A-->B` written without spaces parses its source node as "A--".
+  while (j < line.length) {
+    const c = line[j];
+    if (/[A-Za-z0-9_.]/.test(c)) { j += 1; continue; }
+    if (c === '-') {
+      const next = line[j + 1];
+      if (next === '-' || next === '>' || next === '.') break;
+      j += 1;
+      continue;
+    }
+    break;
+  }
   const id = line.slice(i, j);
   if (id === '') return null;
 
@@ -52,19 +65,43 @@ function readNode(line, i) {
     j = k;
   }
 
-  for (const { shape, open, close } of SHAPES) {
-    if (!line.startsWith(open, j)) continue;
-    const end = line.indexOf(close, j + open.length);
+  // Find where the label ends. Two things make this more than an indexOf:
+  //
+  //  - A quoted label may contain the closing bracket, as in A["Ship [x]"].
+  //    Skip past the quotes before looking for it.
+  //  - `[/` opens both a parallelogram (`/]`) and a trapezoid (`\\]`), so the
+  //    first candidate close in SHAPES order is not necessarily the right one.
+  //    Without picking the nearest, `i[/Para/] --> j[/Trap\\]` matches the
+  //    trapezoid across both nodes and swallows the second one.
+  const closeFrom = (openLen) => {
+    const start = j + openLen;
+    if (line[start] !== '"') return start;
+    const quoteEnd = line.indexOf('"', start + 1);
+    return quoteEnd === -1 ? start : quoteEnd + 1;
+  };
+
+  let best = null;
+  for (const sh of SHAPES) {
+    if (!line.startsWith(sh.open, j)) continue;
+    const end = line.indexOf(sh.close, closeFrom(sh.open.length));
     if (end === -1) continue;
+    const better = best === null
+      || sh.open.length > best.open.length
+      || (sh.open.length === best.open.length && end < best.end);
+    if (better) best = { ...sh, end };
+  }
+
+  if (best) {
     return {
       id,
       classes,
-      shape,
-      label: unquote(line.slice(j + open.length, end)),
-      next: end + close.length,
+      shape: best.shape,
+      label: unquote(line.slice(j + best.open.length, best.end)),
+      next: best.end + best.close.length,
       labelled: true,
     };
   }
+
   return { id, classes, shape: 'rect', label: id, next: j, labelled: false };
 }
 

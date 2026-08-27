@@ -1,4 +1,4 @@
-import { DENSITY, DENSITY_KEYS, DIRECTION_KEYS } from './constants.js';
+import { DENSITY, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS } from './constants.js';
 import { PALETTES, getPalette, deriveTokens } from './palettes.js';
 import { STYLES, getStyle } from './styles/index.js';
 import { renderSvg, styleCss } from './render.js';
@@ -110,6 +110,7 @@ const STUDIO_HTML = `
       <h2>Layout</h2>
       <label>Density <select id="fm-density"></select></label>
       <label>Direction <select id="fm-direction"></select></label>
+      <label title="How a loop back to an earlier step is drawn">Loops <select id="fm-loops"></select></label>
       <h2>Motion</h2>
       <div class="fm-seg">
         <button type="button" data-action="anim-pulse" aria-pressed="true">Pulse</button>
@@ -220,6 +221,17 @@ export function mountStudio(root) {
     .map((d) => `<option value="${d}">${d[0].toUpperCase()}${d.slice(1)}</option>`).join('');
   el('#fm-direction').innerHTML = DIRECTION_KEYS
     .map((d) => `<option value="${d}">${d}</option>`).join('');
+  el('#fm-loops').innerHTML = LOOP_KEYS
+    .map((k) => `<option value="${k}">${k[0].toUpperCase()}${k.slice(1)}</option>`).join('');
+
+  function setAutoScroll(on) {
+    state.autoScroll = on;
+    if (on) state.canvas?.startAutoScroll();
+    else state.canvas?.stopAutoScroll();
+    for (const b of root.querySelectorAll('[data-action="toggle-scroll"]')) {
+      b.setAttribute('aria-pressed', String(on));
+    }
+  }
 
   function exportInput() {
     const r = state.resolved;
@@ -231,6 +243,7 @@ export function mountStudio(root) {
       paletteKey: r.meta.palette,
       density: r.meta.density,
       direction: r.meta.direction,
+      loops: r.meta.loops,
       animationMode: state.animationMode,
       autoScroll: state.autoScroll,
     };
@@ -261,12 +274,13 @@ export function mountStudio(root) {
     state.runtime?.destroy();
     state.canvas?.destroy();
 
-    stage.innerHTML = renderSvg(resolved.model, {
+    const svg = renderSvg(resolved.model, {
       styleKey: activeStyle.key,
       palette,
       meta: resolved.meta,
       details: resolved.details,
     });
+    stage.innerHTML = svg;
 
     state.canvas = createCanvas(canvasHost, resolved.model, {
       onZoom: (z) => { el('#fm-zoom-label').textContent = `${Math.round(z * 100)}%`; },
@@ -280,10 +294,10 @@ export function mountStudio(root) {
       onPause: () => state.canvas?.pauseAutoScroll(),
       onResume: () => state.canvas?.resumeAutoScroll(),
     });
-    if (state.autoScroll ?? scrollDefaultFor(state.animationMode)) state.canvas.startAutoScroll();
+    setAutoScroll(state.autoScroll ?? scrollDefaultFor(state.animationMode));
 
-    // The document view is the reading counterpart to the diagram.
-    docOut.innerHTML = documentToHtml(resolved);
+    // The reading view leads with the same diagram, then the step details.
+    docOut.innerHTML = documentToHtml({ ...resolved, svg });
     // Keep the mermaid editor in step, unless the user is typing in it.
     if (doc.activeElement !== mermaidEdit) mermaidEdit.value = resolved.mermaidSrc;
     refreshExport();
@@ -296,6 +310,7 @@ export function mountStudio(root) {
     }
     el('#fm-density').value = resolved.meta.density;
     el('#fm-direction').value = resolved.meta.direction;
+    el('#fm-loops').value = resolved.meta.loops;
     el('#fm-title').textContent = resolved.meta.title;
     el('#fm-present-title').textContent = resolved.meta.title;
     el('#fm-subtitle').textContent = resolved.meta.subtitle;
@@ -311,15 +326,6 @@ export function mountStudio(root) {
   // scrolls itself to each active step, so a second scroller would fight it.
   function scrollDefaultFor(mode) {
     return mode === 'pulse';
-  }
-
-  function setAutoScroll(on) {
-    state.autoScroll = on;
-    if (on) state.canvas?.startAutoScroll();
-    else state.canvas?.stopAutoScroll();
-    for (const b of root.querySelectorAll('[data-action="toggle-scroll"]')) {
-      b.setAttribute('aria-pressed', String(on));
-    }
   }
 
   function setPresenting(on) {
@@ -482,7 +488,7 @@ export function mountStudio(root) {
     }
   });
 
-  for (const [id, key] of [['fm-density', 'density'], ['fm-direction', 'direction']]) {
+  for (const [id, key] of [['fm-density', 'density'], ['fm-direction', 'direction'], ['fm-loops', 'loops']]) {
     el(`#${id}`).addEventListener('change', (ev) => {
       state.overrides[key] = ev.target.value;
       render();

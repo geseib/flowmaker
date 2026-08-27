@@ -34,6 +34,8 @@ const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 // The crawl's tick interval. Sixty pixels a second at 30Hz is two pixels a
 // tick, which is smooth enough for a slow travel and cheap enough to leave on.
 const TIMER_INTERVAL_MS = 33;
+// How long after letting go of the canvas the crawl picks up again.
+const DRAG_RESUME_MS = 1400;
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
 // One step of the auto-scroll crawl, as a pure function of the current state.
@@ -110,7 +112,11 @@ export function createCanvas(container, model, opts = {}) {
     // pointer here would retarget the click and swallow it.
     if (e.target.closest(NO_PAN)) return;
     panning = true;
-    if (scrollWanted) stopAutoScroll();
+    // Taking hold of the canvas pauses the crawl; letting go hands it back
+    // after a moment. Cancelling it outright left no way to get it going again.
+    if (dragResume !== null) { clearTimeout(dragResume); dragResume = null; }
+    pausedBy.drag = true;
+    syncScrollPause();
     container.dataset.panning = 'true';
     container.setPointerCapture?.(e.pointerId);
     origin = { x: e.clientX, y: e.clientY, left: container.scrollLeft, top: container.scrollTop };
@@ -123,8 +129,19 @@ export function createCanvas(container, model, opts = {}) {
   }
 
   function onPointerUp(e) {
+    const wasPanning = panning;
     panning = false;
     container.dataset.panning = 'false';
+    if (wasPanning) {
+      if (dragResume !== null) clearTimeout(dragResume);
+      dragResume = setTimeout(() => {
+        dragResume = null;
+        pausedBy.drag = false;
+        lastFrame = 0;
+        scrollPos = scrollAxis() === 'left' ? container.scrollLeft : container.scrollTop;
+        syncScrollPause();
+      }, DRAG_RESUME_MS);
+    }
     try {
       container.releasePointerCapture?.(e.pointerId);
     } catch {
@@ -161,8 +178,14 @@ export function createCanvas(container, model, opts = {}) {
   let scrollDir = 1;
   let holdUntil = 0;
   let lastFrame = 0;
-  let scrollPaused = false;
   let scrollWanted = false;
+  // Two independent things pause the crawl: hovering a step, and dragging the
+  // canvas. Deriving the flag from both rather than toggling one boolean is
+  // what stops one of them from stranding the other.
+  const pausedBy = { hover: false, drag: false };
+  let scrollPaused = false;
+  let dragResume = null;
+  const syncScrollPause = () => { scrollPaused = pausedBy.hover || pausedBy.drag; };
   // The crawl advances a fraction of a pixel per frame at 120Hz, and scrollLeft
   // rounds to whole pixels, so the movement would be discarded every frame.
   // Accumulate the true position here and write the rounded value out.
@@ -224,6 +247,9 @@ export function createCanvas(container, model, opts = {}) {
     scrollWanted = false;
     container.dataset.autoscroll = 'false';
     if (scrollTimer !== null) { clearInterval(scrollTimer); scrollTimer = null; }
+    if (dragResume !== null) { clearTimeout(dragResume); dragResume = null; }
+    pausedBy.drag = false;
+    syncScrollPause();
   }
 
   const onResize = () => {
@@ -289,11 +315,15 @@ export function createCanvas(container, model, opts = {}) {
     },
     // Hover, focus, and an open modal all freeze the crawl, matching the
     // animation pause so the whole diagram stops together.
-    pauseAutoScroll() { scrollPaused = true; },
+    pauseAutoScroll() {
+      pausedBy.hover = true;
+      syncScrollPause();
+    },
     resumeAutoScroll() {
-      scrollPaused = false;
+      pausedBy.hover = false;
       lastFrame = 0;
       scrollPos = scrollAxis() === 'left' ? container.scrollLeft : container.scrollTop;
+      syncScrollPause();
     },
     startAutoScroll,
     stopAutoScroll,

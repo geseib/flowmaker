@@ -70,6 +70,7 @@ export function buildExport(input, bundle = {}) {
     paletteKey: palette.key,
     density,
     direction: input.direction ?? input.graph?.direction ?? DEFAULTS.direction,
+    loops: input.loops ?? DEFAULTS.loops,
     animationMode: input.animationMode ?? 'pulse',
     autoScroll: input.autoScroll ?? (input.animationMode ?? 'pulse') === 'pulse',
   };

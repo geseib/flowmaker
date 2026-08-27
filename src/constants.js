@@ -7,11 +7,18 @@ export const DENSITY_KEYS = ['marquee', 'standard', 'compact'];
 
 export const DIRECTION_KEYS = ['LR', 'RL', 'TD', 'BT'];
 
+// How a loop-back is drawn.
+//   line  - always a real line through the gutter beneath the flow
+//   wrap  - always a pair of lettered connectors, like an off-page connector
+//   auto  - a line for a short loop, a wrap once it spans WRAP_MIN_SPAN ranks
+export const LOOP_KEYS = ['auto', 'line', 'wrap'];
+
 export const DEFAULTS = {
   style: 'executive-clean',
   palette: 'harbor',
   direction: 'LR',
   density: 'standard',
+  loops: 'auto',
 };
 
 // Hard cap on node width. Beyond this a label wraps instead of stretching.

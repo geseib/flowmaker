@@ -21,11 +21,15 @@ const cells = (line) => line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('
 // Renders the whole document as a reading view: the title and subtitle, then
 // every step in flow order with its tooltip as a lede and its detail body
 // beneath. Steps in the graph with no section are listed so the gap is visible.
-export function documentToHtml({ meta, model, details }) {
+export function documentToHtml({ meta, model, details, svg }) {
   const esc2 = (v) => esc(String(v ?? ''));
   const head = `<header class="fm-doc-head"><h1>${esc2(meta?.title)}</h1>`
     + (meta?.subtitle ? `<p>${esc2(meta.subtitle)}</p>` : '')
     + '</header>';
+
+  // The reading view leads with the flow itself. The caller passes the already
+  // rendered SVG so this module never has to know about the renderer.
+  const figure = svg ? `<figure class="fm-doc-figure">${svg}</figure>` : '';
 
   const steps = (model?.nodes ?? []).map((n) => {
     const d = details?.[n.id];
@@ -39,7 +43,7 @@ export function documentToHtml({ meta, model, details }) {
       + `<h2>${esc2(label)}</h2>${lede}<div class="fm-doc-body">${body}</div></section>`;
   }).join('');
 
-  return `${head}<div class="fm-doc-steps">${steps}</div>`;
+  return `${head}${figure}<div class="fm-doc-steps">${steps}</div>`;
 }
 
 export function mdToHtml(md) {

@@ -1,4 +1,4 @@
-import { DEFAULTS, STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS } from './constants.js';
+import { DEFAULTS, STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS } from './constants.js';
 import { PALETTES } from './palettes.js';
 import { parseDocument } from './parse.js';
 import { parseMermaid } from './mermaid.js';
@@ -32,6 +32,7 @@ export function resolveDocument(mdText, overrides = {}, measure) {
     density: overrides.density ?? pick('density', doc.meta.density, DENSITY_KEYS, DEFAULTS.density, warnings),
     direction: overrides.direction
       ?? pick('direction', doc.meta.direction, DIRECTION_KEYS, graph.direction ?? DEFAULTS.direction, warnings),
+    loops: overrides.loops ?? pick('loops', doc.meta.loops, LOOP_KEYS, DEFAULTS.loops, warnings),
   };
 
   // The cross-check parse.js could not do: it has no node list.
@@ -56,6 +57,7 @@ export function resolveDocument(mdText, overrides = {}, measure) {
     density: meta.density,
     measure,
     iconSpace: showIconsFor(meta.style),
+    loops: meta.loops,
   });
 
   return { meta, graph, details: doc.details, model, warnings, mermaidSrc: doc.mermaidSrc };

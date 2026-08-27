@@ -287,6 +287,9 @@ export function layout(graph, opts = {}) {
   });
   const reversed = direction === 'RL' || direction === 'BT';
 
+  const loops = opts.loops ?? 'auto';
+  const wrapsLoop = (span) => (loops === 'wrap' ? true : loops === 'line' ? false : span >= WRAP_MIN_SPAN);
+
   let backIndex = 0;
   let wrapIndex = 0;
   const tagRadius = spec.fontSize * 0.78;
@@ -310,7 +313,7 @@ export function layout(graph, opts = {}) {
         { x: from.x + from.w * 0.7, y: from.y + from.h + drop },
         { x: from.x + from.w * 0.7, y: from.y + from.h },
       ];
-    } else if (isBackEdge && Math.abs((from.rank ?? 0) - (to.rank ?? 0)) >= WRAP_MIN_SPAN) {
+    } else if (isBackEdge && wrapsLoop(Math.abs((from.rank ?? 0) - (to.rank ?? 0)))) {
       // A long loop: drop a tagged connector below the source and a matching one
       // below the target, the way an off-page connector works on a flowchart.
       // Both carry the same letter, so the eye jumps instead of tracking a line

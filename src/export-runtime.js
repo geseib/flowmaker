@@ -25,6 +25,7 @@ export function bootExport() {
     density: data.density,
     measure: browserMeasure(spec, FONT_STACK),
     iconSpace: showIconsFor(data.styleKey),
+    loops: data.loops,
   });
 
   stage.innerHTML = renderSvg(model, {

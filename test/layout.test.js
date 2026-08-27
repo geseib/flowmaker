@@ -161,6 +161,28 @@ test('wrap tags stay inside the diagram bounds', () => {
   }
 });
 
+test('loops: line forces even a long loop to stay a real line', () => {
+  const m = build(`${chain(8)}\nN7 --> N0`, { loops: 'line' });
+  const back = m.edges.find((e) => e.isBackEdge);
+  assert.equal(back.isWrap, false);
+  assert.ok(back.path.length > 6);
+});
+
+test('loops: wrap forces even a one-rank loop into tagged connectors', () => {
+  const m = build('flowchart LR\nA --> B --> C\nC --> B', { loops: 'wrap' });
+  const back = m.edges.find((e) => e.isBackEdge);
+  assert.equal(back.isWrap, true);
+  assert.equal(back.wrapTags.length, 2);
+});
+
+test('loops: auto is the threshold behaviour and is the default', () => {
+  const src = `${chain(8)}\nN7 --> N0\nN2 --> N1`;
+  assert.deepEqual(build(src), build(src, { loops: 'auto' }));
+  const m = build(src);
+  assert.equal(m.edges.filter((e) => e.isWrap).length, 1, 'only the long loop wraps');
+  assert.equal(m.edges.filter((e) => e.isBackEdge && !e.isWrap).length, 1);
+});
+
 test('every edge produces a non-empty path, wrapped or not', () => {
   const m = build(`${chain(6)}\nN5 --> N0\nN2 --> N1`);
   for (const e of m.edges) {
