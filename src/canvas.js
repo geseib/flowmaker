@@ -29,10 +29,10 @@ export const CANVAS_CSS = `
 .fm-canvas[data-panning="true"] { cursor: grabbing; user-select: none; }
 .fm-stage { transform-origin: 0 0; will-change: transform; margin: auto; }
 /* Blank travel either side of the diagram, outside the transformed stage. */
-.fm-spacer { display: grid; place-items: center; pointer-events: none; }
+.fm-spacer { display: flex; align-items: center; justify-content: center; pointer-events: none; }
 /* The title rides in the stretch between the end of the flow and its return,
    so the loop has a beat instead of a void. */
-.fm-seam { text-align: center; padding: 0 2rem; }
+.fm-seam { text-align: center; max-width: 46ch; }
 .fm-seam h2 {
   margin: 0; font-family: var(--font); color: var(--ink);
   font-size: 3.4rem; font-weight: 800; line-height: 1.05; letter-spacing: -.02em;
@@ -56,9 +56,10 @@ const DRAG_RESUME_MS = 1400;
 // A window after the app scrolls the view in which scroll events are ignored,
 // so following a step is not mistaken for the user scrolling.
 const PROGRAMMATIC_SCROLL_MS = 700;
-// How much blank travel follows the flow before it comes round again, as a
-// fraction of the viewport. This is the stretch the title crosses.
-const SEAM_GAP_RATIO = 0.85;
+// The breathing room between the flow and the title, in multiples of the
+// title's own type size: about five characters' worth.
+const SEAM_GAP_EMS = 2.5;
+const SEAM_GAP_FALLBACK = 48;
 
 // Which step sits nearest the middle of the viewport. Pure so the choice can be
 // tested without a browser: scroll events are not dispatched at all on a page
@@ -215,16 +216,16 @@ export function createCanvas(container, model, opts = {}) {
     const box = container.getBoundingClientRect();
     const px = (container.scrollLeft + e.clientX - box.left) / zoom;
     const py = (container.scrollTop + e.clientY - box.top) / zoom;
+    userZoomed = true;
     zoom = clampZoom(zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
     apply();
     container.scrollLeft = px * zoom - (e.clientX - box.left);
     container.scrollTop = py * zoom - (e.clientY - box.top);
   }
 
-  // The first render happens before the grid has laid out, so clientWidth and
-  // clientHeight are meaningless. Wait for the first real measurement, then fit
-  // once. Without this the diagram loads at a nonsense zoom.
-  let autoFitDone = false;
+  // Set once someone chooses a zoom, after which the view is theirs and is not
+  // re-fitted behind their back.
+  let userZoomed = false;
   function fitDefault() {
     const byHeight = fitScale(model.bounds, viewport(), 'height');
     const byWidth = fitScale(model.bounds, viewport(), 'width');
@@ -269,14 +270,19 @@ export function createCanvas(container, model, opts = {}) {
   // scroll arithmetic in screen pixels at any zoom.
   // Where the title sits, centred in the viewport. That is the far end of the
   // scroll range: travelling on from there wraps straight into the flow.
+  function seamGap() {
+    const heading = seam?.querySelector('h2');
+    if (!heading) return SEAM_GAP_FALLBACK;
+    const size = parseFloat(container.ownerDocument.defaultView.getComputedStyle(heading).fontSize);
+    return Math.round((Number.isFinite(size) ? size : 20) * SEAM_GAP_EMS);
+  }
+
   function seamStartPos() {
-    if (!leadSpacer || !trailSpacer) return 0;
+    if (!seam) return 0;
     if (scrollAxis() === 'left') {
-      const trailStart = leadSpacer.offsetWidth + stage.offsetWidth;
-      return Math.max(0, trailStart + trailSpacer.offsetWidth / 2 - container.clientWidth / 2);
+      return Math.max(0, seam.offsetLeft + seam.offsetWidth / 2 - container.clientWidth / 2);
     }
-    const trailStart = leadSpacer.offsetHeight + stage.offsetHeight;
-    return Math.max(0, trailStart + trailSpacer.offsetHeight / 2 - container.clientHeight / 2);
+    return Math.max(0, seam.offsetTop + seam.offsetHeight / 2 - container.clientHeight / 2);
   }
 
   function applyLoopPadding(on) {
@@ -294,7 +300,7 @@ export function createCanvas(container, model, opts = {}) {
     const axis = scrollAxis();
     const need = axis === 'left' ? container.clientWidth : container.clientHeight;
     if (need <= 0) return;
-    const gap = Math.round(need * SEAM_GAP_RATIO);
+    const gap = seamGap();
 
     if (!leadSpacer) {
       const doc = container.ownerDocument;
@@ -321,18 +327,26 @@ export function createCanvas(container, model, opts = {}) {
 
       container.insertBefore(leadSpacer, stage);
       stage.after(trailSpacer);
-      // Auto margins would hand the spare space back to the stage.
-      stage.style.margin = '0';
     }
 
+    // Auto margins along the flow axis would hand the spacers' room back to the
+    // stage, but the cross axis still needs them: that is what centres the
+    // diagram in the panel rather than pinning it to the top.
+    stage.style.margin = axis === 'left' ? 'auto 0' : '0 auto';
     container.style.flexDirection = axis === 'left' ? 'row' : 'column';
     const previous = parseFloat(leadSpacer.style.flexBasis) || 0;
     if (Math.abs(previous - need) < 1) return;
 
     leadSpacer.style.flex = `0 0 ${need}px`;
-    // The trailing side carries the extra gap: the stretch the title crosses
-    // after the flow leaves and before it comes round again.
-    trailSpacer.style.flex = `0 0 ${need + gap}px`;
+    // The trailing side is sized by its contents: a small gap, the title, then
+    // one viewport of run-off so the wrap lands on a blank frame. Letting it
+    // size itself keeps the gap small however long the title is.
+    trailSpacer.style.flex = '0 0 auto';
+    if (axis === 'left') {
+      trailSpacer.style.padding = `0 ${need}px 0 ${gap}px`;
+    } else {
+      trailSpacer.style.padding = `${gap}px 0 ${need}px 0`;
+    }
     // Shift with it, so the diagram does not jump when the spacing changes.
     scrollPos += need - previous;
   }
@@ -413,12 +427,14 @@ export function createCanvas(container, model, opts = {}) {
 
   const onResize = () => {
     if (scrollWanted && scrollMode === 'loop') applyLoopPadding(true);
-    if (!autoFitDone && container.clientWidth > 1 && container.clientHeight > 1) {
-      autoFitDone = true;
-      if (opts.autoFit !== false) {
-        fitDefault();
-        return;
-      }
+    // Keep fitting until someone picks a zoom themselves. A one-shot latch here
+    // fired before the panel had settled and never ran again, which left the
+    // diagram at 1:1 in a panel a fraction of its height, with nothing for the
+    // auto margins to centre.
+    if (!userZoomed && opts.autoFit !== false
+      && container.clientWidth > 1 && container.clientHeight > 1) {
+      fitDefault();
+      return;
     }
     apply();
   };
@@ -431,28 +447,33 @@ export function createCanvas(container, model, opts = {}) {
   container.addEventListener('scroll', onScroll, { passive: true });
   const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null;
   if (resizeObserver) resizeObserver.observe(container);
-  else if (opts.autoFit !== false) { autoFitDone = true; fitDefault(); }
+  else if (opts.autoFit !== false) fitDefault();
 
   apply();
 
   return {
     setZoom(z) {
+      userZoomed = true;
       zoom = clampZoom(z);
       apply();
     },
     zoomBy(f) {
+      userZoomed = true;
       zoom = clampZoom(zoom * f);
       apply();
     },
     fitWidth() {
+      userZoomed = true;
       zoom = fitScale(model.bounds, viewport(), 'width');
       apply();
     },
     fitHeight() {
+      userZoomed = true;
       zoom = fitScale(model.bounds, viewport(), 'height');
       apply();
     },
     fitBoth() {
+      userZoomed = true;
       zoom = fitScale(model.bounds, viewport(), 'both');
       apply();
     },
@@ -460,10 +481,10 @@ export function createCanvas(container, model, opts = {}) {
     // type is as large as possible, and let the user scroll sideways. Never
     // magnifies past 1:1, because an upscaled small diagram looks broken.
     fitDefault() {
-      autoFitDone = true;
       fitDefault();
     },
     actualSize() {
+      userZoomed = true;
       zoom = 1;
       apply();
     },
