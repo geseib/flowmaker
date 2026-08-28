@@ -310,3 +310,27 @@ test('during a walkthrough the arrows step the walk, forward on right and down',
   assert.equal(walkStepFor('ArrowUp'), -1);
   assert.equal(walkStepFor('Enter'), 0);
 });
+
+test('following the view understands that a looping diagram repeats', () => {
+  const nodes = [
+    { id: 'FIRST', x: 0, y: 0, w: 100, h: 60 },
+    { id: 'LAST', x: 900, y: 0, w: 100, h: 60 },
+  ];
+  const at = (scrollLeft, loopSpan) => nearestNodeId(nodes, {
+    scrollLeft, clientWidth: 200, stageLeft: 0, zoom: 1, horizontal: true, loopSpan,
+  });
+  // Past the last step come the title and then the diagram again. Measured in a
+  // straight line, everything out there reads as the last step for ever.
+  assert.equal(at(1400, 0), 'LAST', 'without the span, it sticks at the end');
+  assert.equal(at(1400, 1600), 'FIRST', 'around the loop, the start is closer');
+  assert.equal(at(950, 1600), 'LAST', 'and the end is still the end while it is');
+});
+
+test('a diagram that does not loop is measured in a straight line', () => {
+  const nodes = [{ id: 'A', x: 0, y: 0, w: 100, h: 60 }, { id: 'B', x: 900, y: 0, w: 100, h: 60 }];
+  const at = (scrollLeft) => nearestNodeId(nodes, {
+    scrollLeft, clientWidth: 200, stageLeft: 0, zoom: 1, horizontal: true,
+  });
+  assert.equal(at(0), 'A');
+  assert.equal(at(900), 'B');
+});
