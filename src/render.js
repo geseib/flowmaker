@@ -1,7 +1,7 @@
 import { DENSITY } from './constants.js';
 import { getStyle } from './styles/index.js';
 import { deriveTokens } from './palettes.js';
-import { ICONS, iconFor, showIconsFor } from './icons.js';
+import { ICONS, iconFor, showIcons, resolveIconName } from './icons.js';
 import { esc } from './escape.js';
 import { toneOf, kindOf } from './tone.js';
 
@@ -112,9 +112,9 @@ function iconMarkup(n, spec, iconName) {
   };
 }
 
-function nodeMarkup(n, spec, details, showIcons, nativeTitles, tone) {
+function nodeMarkup(n, spec, details, withIcons, nativeTitles, tone) {
   const detail = details?.[n.id];
-  const iconName = showIcons ? iconFor(n) : null;
+  const iconName = withIcons ? iconFor(n) : null;
   const icon = iconMarkup(n, spec, iconName);
   const lines = wrapLabel(n.label, n, spec);
   const lineH = spec.fontSize * 1.28;
@@ -146,7 +146,7 @@ function nodeMarkup(n, spec, details, showIcons, nativeTitles, tone) {
   ].join('');
 }
 
-function edgeMarkup(e, spec) {
+function edgeMarkup(e, spec, horizontal = true) {
   const marker = e.isBackEdge ? 'fm-arrow-alert' : 'fm-arrow-head';
   const attrs = [
     `data-edge="${esc(e.from)}__${esc(e.to)}"`,
@@ -169,8 +169,34 @@ function edgeMarkup(e, spec) {
   }).join('');
 
   if (!e.label) return path + tags;
+
   const halfW = e.label.length * spec.labelFontSize * 0.32 + 8;
   const halfH = spec.labelFontSize * 0.85;
+
+  // An edge that carries something — a document, a payment, a package — draws
+  // it clear of the line rather than on top of it. A thing being handed over is
+  // not an annotation about the arrow, and sitting on the line it reads as one.
+  const icon = resolveIconName(e.icon);
+  if (icon) {
+    const size = Math.round(spec.fontSize * 1.15);
+    const pad = Math.round(spec.labelFontSize * 0.7);
+    const boxW = Math.max(halfW * 2, size + pad * 2);
+    const boxH = size + spec.labelFontSize * 1.5 + pad * 1.6;
+    // Above a flow that runs across, beside one that runs down: the side the
+    // line is not using.
+    const drop = Math.round(boxH / 2 + spec.stroke * 3 + 6);
+    const cx = horizontal ? e.labelPos.x : e.labelPos.x + drop;
+    const cy = horizontal ? e.labelPos.y - drop : e.labelPos.y;
+    const iconY = cy - boxH / 2 + pad;
+    return path
+      + `<g class="fm-edge-carry" data-icon="${esc(icon)}">`
+      + `<line class="fm-edge-carry-tie" x1="${e.labelPos.x}" y1="${e.labelPos.y}" x2="${horizontal ? cx : cx - boxW / 2}" y2="${horizontal ? cy + boxH / 2 : cy}"/>`
+      + `<svg class="fm-edge-carry-icon" x="${cx - size / 2}" y="${iconY}" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[icon]}</svg>`
+      + `<text class="fm-edge-carry-text" x="${cx}" y="${iconY + size + spec.labelFontSize * 0.95}" text-anchor="middle" dominant-baseline="middle">${esc(e.label)}</text>`
+      + '</g>'
+      + tags;
+  }
+
   return path
     + `<rect class="fm-edge-label-bg" x="${e.labelPos.x - halfW}" y="${e.labelPos.y - halfH}" width="${halfW * 2}" height="${halfH * 2}" rx="4"/>`
     + `<text class="fm-edge-label" x="${e.labelPos.x}" y="${e.labelPos.y}" text-anchor="middle" dominant-baseline="middle">${esc(e.label)}</text>`
@@ -181,6 +207,7 @@ function edgeMarkup(e, spec) {
 // draw with. Styles ask for var(--tone) and stay out of the decision, so a
 // diagram can be coloured by shape, by tier, or by lane without touching them.
 export const TONE_CSS = `
+.fm-node-icon { display: block; color: var(--tone); }
 .fm-node { --tone: var(--c1); --tone-ink: var(--c1-ink); --tone-soft: var(--c1-soft); }
 .fm-node[data-tone="0"] { --tone: var(--ink-dim); --tone-ink: var(--surface); --tone-soft: var(--surface-2); }
 .fm-node[data-tone="2"] { --tone: var(--c2); --tone-ink: var(--c2-ink); --tone-soft: var(--c2-soft); }
@@ -217,11 +244,12 @@ export function renderSvg(model, opts = {}) {
       + `<text x="${s.x + 18}" y="${s.y + 22}">${esc(s.label)}</text></g>`)
     .join('');
 
-  const edges = model.edges.map((e) => edgeMarkup(e, spec)).join('');
-  const showIcons = opts.showIcons ?? showIconsFor(opts.styleKey);
+  const horizontal = model.direction !== 'TD' && model.direction !== 'BT';
+  const edges = model.edges.map((e) => edgeMarkup(e, spec, horizontal)).join('');
+  const drawIcons = opts.showIcons ?? showIcons(opts.styleKey, opts.icons);
   const colorBy = opts.colorBy ?? 'type';
   const nodes = model.nodes
-    .map((n) => nodeMarkup(n, spec, details, showIcons, opts.nativeTitles, toneOf(n, colorBy, model)))
+    .map((n) => nodeMarkup(n, spec, details, drawIcons, opts.nativeTitles, toneOf(n, colorBy, model)))
     .join('');
   const title = opts.meta?.title ? `<title>${esc(opts.meta.title)}</title>` : '';
 

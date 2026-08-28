@@ -42,6 +42,9 @@ export default {
 .fm-edge-label-bg { fill: var(--ground); }
 .fm-arrow { fill: var(--c1); }
 .fm-arrow-alert { fill: var(--c4); }
+.fm-edge-carry-tie { stroke: var(--border); stroke-width: var(--stroke); stroke-dasharray: 3 4; }
+.fm-edge-carry-icon { color: var(--c3); overflow: visible; }
+.fm-edge-carry-text { fill: var(--ink); font-size: ${spec.labelFontSize}px; font-weight: 700; letter-spacing: .01em; paint-order: stroke; stroke: var(--ground); stroke-width: 4px; stroke-linejoin: round; }
 .fm-wrap-tag circle { fill: var(--ground); stroke: var(--c4); stroke-width: var(--stroke); }
 .fm-wrap-tag-text { fill: var(--c4); font-size: ${spec.labelFontSize + 2}px; font-weight: 800; letter-spacing: .04em; }
 `.trim(),

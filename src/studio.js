@@ -1,11 +1,11 @@
-import { DENSITY, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, COLOR_BY_KEYS, SPEEDS, DEFAULT_SPEED } from './constants.js';
+import { DENSITY, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, COLOR_BY_KEYS, ICON_MODE_KEYS, SPEEDS, DEFAULT_SPEED } from './constants.js';
 import { PALETTES, getPalette, deriveTokens } from './palettes.js';
 import { STYLES, getStyle } from './styles/index.js';
 import { renderSvg, styleCss } from './render.js';
 import { RUNTIME_CSS, attachRuntime, ANIMATE_CSS } from './runtime.js';
 import { CANVAS_CSS, createCanvas } from './canvas.js';
 import { browserMeasure } from './measure.js';
-import { showIconsFor } from './icons.js';
+import { ICON_GUIDE, ICONS } from './icons.js';
 import { buildExport } from './export.js';
 import { buildEmbed } from './embed.js';
 import { buildStandaloneSvg, fileNameFor } from './svg.js';
@@ -122,6 +122,7 @@ const STUDIO_HTML = `
       <h2>Style</h2><div id="fm-style-list" class="fm-style-list"></div>
       <h2>Palette</h2><div id="fm-palette-list" class="fm-palette-list"></div>
       <label title="Which nodes wear which of the palette's four colours">Colour by <select id="fm-colorby"></select></label>
+      <label title="Step icons: with the Infographic style only, always, or never">Icons <select id="fm-icons"></select></label>
       <h2>Layout</h2>
       <label title="Flow arranges the steps in layers; Tree hangs a hierarchy, for an org chart">Arrangement <select id="fm-layout"></select></label>
       <label>Density <select id="fm-density"></select></label>
@@ -171,6 +172,7 @@ const STUDIO_HTML = `
           <button type="button" data-pane="markdown" aria-pressed="true">Markdown</button>
           <button type="button" data-pane="mermaid" aria-pressed="false">Mermaid</button>
           <button type="button" data-pane="html" aria-pressed="false" title="A self-contained snippet with no toolbar, for pasting into another document">Embed HTML</button>
+          <button type="button" data-pane="icons" aria-pressed="false" title="Every icon, its name, and when to use it">Icons</button>
           <div class="fm-zoom">
             <button type="button" data-action="refresh">Refresh</button>
             <button type="button" data-action="copy-code">Copy</button>
@@ -181,6 +183,7 @@ const STUDIO_HTML = `
           <textarea id="fm-editor" class="fm-pane" data-pane="markdown" spellcheck="false" aria-label="FlowMaker markdown source"></textarea>
           <textarea id="fm-mermaid-edit" class="fm-pane" data-pane="mermaid" spellcheck="false" aria-label="Mermaid source"></textarea>
           <pre id="fm-code-out" class="fm-pane fm-code" data-pane="html"></pre>
+          <div id="fm-icon-guide" class="fm-pane fm-icon-guide" data-pane="icons"></div>
         </div>
       </section>
     </main>
@@ -224,6 +227,17 @@ export function mountStudio(root) {
   const canvasHost = el('#fm-canvas');
   const stage = el('#fm-stage');
   const codeOut = el('#fm-code-out');
+
+  // The reference sheet is built from the same map the renderer draws from, so
+  // it cannot describe an icon that does not exist or miss one that does.
+  el('#fm-icon-guide').innerHTML = '<p class="fm-icon-guide-lede">Tag a step with <code>:::icon-&lt;name&gt;</code>, or hand something along an '
+    + 'arrow with <code>--&gt;|&lt;name&gt;: Label|</code>. Without a tag the icon is guessed from the wording.</p>'
+    + '<div class="fm-icon-grid">'
+    + Object.entries(ICON_GUIDE).map(([name, use]) => `<div class="fm-icon-card">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">${ICONS[name]}</svg>
+        <div><code>${name}</code><span>${use}</span></div>
+      </div>`).join('')
+    + '</div>';
   const docOut = el('#fm-doc-out');
   const mermaidEdit = el('#fm-mermaid-edit');
   const panes = el('#fm-panes');
@@ -254,6 +268,8 @@ export function mountStudio(root) {
     .map((k) => `<option value="${k}">${k[0].toUpperCase()}${k.slice(1)}</option>`).join('');
   el('#fm-colorby').innerHTML = COLOR_BY_KEYS
     .map((k) => `<option value="${k}">${COLOR_BY_LABELS[k]}</option>`).join('');
+  el('#fm-icons').innerHTML = ICON_MODE_KEYS
+    .map((k) => `<option value="${k}">${k[0].toUpperCase()}${k.slice(1)}</option>`).join('');
 
   function setSpeed(value) {
     state.speed = SPEEDS.includes(value) ? value : DEFAULT_SPEED;
@@ -267,10 +283,15 @@ export function mountStudio(root) {
 
   function setAutoScroll(on) {
     state.autoScroll = on;
-    if (on && crawlAllowed()) state.canvas?.startAutoScroll();
+    const allowed = crawlAllowed();
+    if (on && allowed) state.canvas?.startAutoScroll();
     else state.canvas?.stopAutoScroll();
     for (const b of root.querySelectorAll('[data-action="toggle-scroll"]')) {
-      b.setAttribute('aria-pressed', String(on));
+      // In a walkthrough the walk drives the view, so the crawl cannot run. The
+      // control says so rather than showing itself on while nothing moves.
+      b.setAttribute('aria-pressed', String(on && allowed));
+      b.disabled = !allowed;
+      b.title = allowed ? '' : 'The walkthrough moves the view itself';
     }
   }
 
@@ -296,6 +317,7 @@ export function mountStudio(root) {
       loops: r.meta.loops,
       layout: r.meta.layout,
       colorBy: r.meta.colorBy,
+      icons: r.meta.icons,
       animationMode: state.animationMode,
       autoScroll: state.autoScroll,
       detailPanel: state.detailPanel,
@@ -316,6 +338,7 @@ export function mountStudio(root) {
       paletteKey: r.meta.palette,
       density: r.meta.density,
       colorBy: r.meta.colorBy,
+      icons: r.meta.icons,
       animationMode: state.animationMode,
     });
   }
@@ -347,6 +370,7 @@ export function mountStudio(root) {
       meta: resolved.meta,
       details: resolved.details,
       colorBy: resolved.meta.colorBy,
+      icons: resolved.meta.icons,
     });
     stage.innerHTML = svg;
 
@@ -405,6 +429,7 @@ export function mountStudio(root) {
     el('#fm-loops').value = resolved.meta.loops;
     el('#fm-layout').value = resolved.meta.layout;
     el('#fm-colorby').value = resolved.meta.colorBy;
+    el('#fm-icons').value = resolved.meta.icons;
     el('#fm-title').textContent = resolved.meta.title;
     el('#fm-present-title').textContent = resolved.meta.title;
     el('#fm-subtitle').textContent = resolved.meta.subtitle;
@@ -697,7 +722,8 @@ export function mountStudio(root) {
   });
 
   for (const [id, key] of [['fm-density', 'density'], ['fm-direction', 'direction'],
-    ['fm-loops', 'loops'], ['fm-layout', 'layout'], ['fm-colorby', 'colorBy']]) {
+    ['fm-loops', 'loops'], ['fm-layout', 'layout'], ['fm-colorby', 'colorBy'],
+    ['fm-icons', 'icons']]) {
     el(`#${id}`).addEventListener('change', (ev) => {
       state.overrides[key] = ev.target.value;
       render();

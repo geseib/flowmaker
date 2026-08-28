@@ -45,6 +45,7 @@ export function buildStandaloneSvg(input) {
     nativeTitles: true,
     pulses: animated,
     colorBy: input.colorBy ?? DEFAULTS.colorBy,
+    icons: input.icons ?? DEFAULTS.icons,
   });
 
   // Lift the diagram out of its own <svg> and into this one, so the file has a

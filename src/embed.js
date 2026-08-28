@@ -102,6 +102,7 @@ export function buildEmbed(input) {
     nativeTitles: true,
     pulses: animated,
     colorBy: input.colorBy ?? DEFAULTS.colorBy,
+    icons: input.icons ?? DEFAULTS.icons,
   });
 
   const css = scopeCss(

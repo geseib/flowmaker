@@ -126,7 +126,7 @@ export function shouldRestoreFocus(s) {
 // How much of the view the walk's detail card may take, across the axis the
 // flow does not use. A horizontal flow leaves whitespace above and below it, so
 // the card goes there; a vertical flow leaves it to the sides.
-export const WALK_PANEL = { band: 0.38, sideBand: 0.36, margin: 16, maxSide: 460 };
+export const WALK_PANEL = { band: 0.34, sideBand: 0.34, margin: 28, maxSide: 460 };
 
 // How long the walkthrough waits after being stepped by hand, so a press is not
 // immediately overtaken by the clock.
@@ -417,9 +417,16 @@ export function attachRuntime(root, config = {}) {
   }
 
   function closeModal() {
-    if (backdrop.dataset.open !== 'true') return;
+    const wasOpen = backdrop.dataset.open === 'true';
     backdrop.dataset.open = 'false';
+    // Cleared even when the card was not open. This flag suppresses every
+    // tooltip while it is set, so if it ever survived its card the diagram
+    // would go quiet permanently with nothing on screen to explain it.
     ui.modalOpen = false;
+    if (!wasOpen) {
+      sync();
+      return;
+    }
 
     // Focus goes back to the node for keyboard users, but that restore must not
     // resurrect the tooltip: the pointer may be nowhere near the diagram.

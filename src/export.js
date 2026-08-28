@@ -73,6 +73,7 @@ export function buildExport(input, bundle = {}) {
     loops: input.loops ?? DEFAULTS.loops,
     layout: input.layout ?? DEFAULTS.layout,
     colorBy: input.colorBy ?? DEFAULTS.colorBy,
+    icons: input.icons ?? DEFAULTS.icons,
     animationMode: input.animationMode ?? 'pulse',
     detailPanel: input.detailPanel ?? false,
     autoScroll: input.autoScroll ?? (input.animationMode ?? 'pulse') === 'pulse',

@@ -1,3 +1,4 @@
+import { resolveIconName } from './icons.js';
 // Ordered longest-first so that `[[` is tried before `[` and `(((` before `((`.
 const SHAPES = [
   { shape: 'doublecircle', open: '(((', close: ')))' },
@@ -123,6 +124,18 @@ function readConnector(line, i) {
   return null;
 }
 
+// An edge can carry something: `-->|doc: Product Request|` hands a document
+// from one step to the next. The prefix names an icon and the rest is the
+// label, so the same line still reads as plain mermaid everywhere else.
+export function splitEdgeLabel(label) {
+  const m = /^\s*([a-z][a-z0-9-]*)\s*:\s*(\S.*?)\s*$/i.exec(String(label ?? ''));
+  if (!m) return { label: label ?? '', icon: null };
+  const icon = resolveIconName(m[1]);
+  // Not an icon: it is just a label with a colon in it, and it stays that way.
+  if (!icon) return { label: label ?? '', icon: null };
+  return { label: m[2], icon };
+}
+
 export function parseMermaid(src) {
   const warnings = [];
   const nodeMap = new Map();
@@ -241,7 +254,15 @@ export function parseMermaid(src) {
       const next = readNode(line, i);
       if (!next) break;
       touch(next);
-      edges.push({ from: prev.id, to: next.id, label, kind: conn.kind, arrow: conn.arrow });
+      const carried = splitEdgeLabel(label);
+      edges.push({
+        from: prev.id,
+        to: next.id,
+        label: carried.label,
+        icon: carried.icon,
+        kind: conn.kind,
+        arrow: conn.arrow,
+      });
       prev = next;
       i = next.next;
     }

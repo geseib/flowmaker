@@ -19,6 +19,10 @@ export const LAYOUT_KEYS = ['flow', 'tree'];
 // What decides which of the palette's four swatches a node wears.
 export const COLOR_BY_KEYS = ['type', 'level', 'group', 'tag'];
 
+// Whether the step icons are drawn: with the style that is built around them,
+// always, or never.
+export const ICON_MODE_KEYS = ['auto', 'on', 'off'];
+
 export const LOOP_KEYS = ['auto', 'line', 'wrap'];
 
 // Playback speed multipliers offered next to the zoom controls. They scale the
@@ -34,6 +38,7 @@ export const DEFAULTS = {
   loops: 'auto',
   layout: 'flow',
   colorBy: 'type',
+  icons: 'auto',
 };
 
 // Hard cap on node width. Beyond this a label wraps instead of stretching.

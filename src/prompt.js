@@ -1,6 +1,6 @@
-import { STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, COLOR_BY_KEYS, DEFAULTS } from './constants.js';
+import { STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, COLOR_BY_KEYS, ICON_MODE_KEYS, DEFAULTS } from './constants.js';
 import { PALETTES } from './palettes.js';
-import { ICON_NAMES } from './icons.js';
+import { ICON_GUIDE } from './icons.js';
 
 // The prompt is generated from the same constants the renderer uses, so a new
 // style or palette cannot leave the instructions quietly out of date.
@@ -55,6 +55,7 @@ density: ${DEFAULTS.density}
 loops: ${DEFAULTS.loops}
 layout: ${DEFAULTS.layout}
 colorBy: ${DEFAULTS.colorBy}
+icons: ${DEFAULTS.icons}
 ---
 
 \`\`\`\`mermaid
@@ -93,6 +94,8 @@ prompt. In the real file it is a normal three-backtick \`mermaid\` block.)
   - \`layout\`: ${list(LAYOUT_KEYS)} — \`flow\` for a process, \`tree\` for a
     reporting hierarchy. See "Org charts" below
   - \`colorBy\`: ${list(COLOR_BY_KEYS)} — see "Colour" below
+  - \`icons\`: ${list(ICON_MODE_KEYS)} — \`auto\` shows icons only with the
+    \`infographic\` style, \`on\` shows them whatever the style
 - **Exactly one** fenced \`mermaid\` block, containing a \`flowchart\`. Keep it
   plain and valid so the same file still renders on GitHub and in VS Code. Put
   no FlowMaker-specific syntax inside it.
@@ -175,11 +178,29 @@ failure or escalation path.
 
 ## Icons
 
-The \`infographic\` style puts an icon on each step. It picks one from the step's
-label automatically ("Capture Payment" resolves money, "Review Contract"
-resolves document), falling back to the node's shape. To force one, append
-\`:::icon-<name>\` to the node, as in \`PAY:::icon-money\`. Available names:
-${ICON_NAMES.join(', ')}.
+An icon can be put on a step, and on an arrow that hands something over. Set
+\`icons: on\` in the frontmatter to show them whatever the style; with \`auto\`
+they appear only in the \`infographic\` style.
+
+**On a step:** append \`:::icon-<name>\`, as in \`PAY[Capture Payment]:::icon-money\`.
+Untagged steps get an icon guessed from their wording, falling back to the
+node's shape — so tag the ones the guess would get wrong.
+
+**On an arrow:** put the icon name before the label, as in
+\`DESIGN -->|doc: Product Request| REVIEW\`. The arrow then shows what is being
+handed over, drawn clear of the line rather than sitting on it. Use this for a
+real artifact — a document, a payment, a package, a signed contract — not for a
+branch label like "Approved" or "Rejected", which stay as plain labels.
+
+**Who does the work:** \`:::icon-human\` and \`:::icon-agent\` distinguish a step a
+person does from one an automated agent does. In a flow where both appear, tag
+every step one way or the other: half-tagged reads as an oversight. Pairing it
+with \`colorBy: tag\` and \`:::human\` / \`:::agent\` colours them apart as well.
+
+Ask me which steps are which rather than assuming. Choose from this list, and
+do not invent a name — an unknown one is ignored:
+
+${Object.entries(ICON_GUIDE).map(([name, use]) => `- \`${name}\` — ${use}`).join('\n')}
 
 ## Finally
 

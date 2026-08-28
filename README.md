@@ -43,6 +43,7 @@ density: marquee         # marquee | standard | compact
 loops: auto              # auto | line | wrap
 layout: flow             # flow | tree (tree is an org chart: one box above each)
 colorBy: type            # type | level | group | tag
+icons: auto              # auto (infographic only) | on | off
 ---
 
 ```mermaid
@@ -96,10 +97,18 @@ studio reports any section that matches no node, and any node with no section.
   In a walkthrough it follows the walk; otherwise it follows the view, which
   the crawl moves for you or you move with the arrows. Hovering the card holds
   everything while you read.
-- **Icons** — the Infographic style resolves an inline SVG icon per step from
-  the label (`Capture Payment` → money, `Review Contract` → document), falling
-  back to the mermaid shape, and sets it in a ring. Force one with
-  `A:::icon-money`. No emoji, no icon fonts, no images.
+- **Icons** — 35 inline SVG icons, each with a note on when to use it, listed
+  in the studio's Icons tab and handed to the authoring prompt so a tag is
+  chosen from a list rather than guessed at. A step resolves one from its label
+  (`Capture Payment` → money), falling back to the mermaid shape; force one with
+  `A:::icon-money`. `icons: on` shows them in any style, not just Infographic.
+  `human` and `agent` mark who does the work. No emoji, no icon fonts, no
+  images, no network.
+- **An arrow can carry something** — `DRAFT -->|doc: Product Request| REVIEW`
+  draws the artifact being handed over, clear of the line rather than sitting on
+  it, because a thing being passed along is not a note about the arrow. The
+  prefix names an icon (`doc`, `payment`, `retry`, and the rest resolve to it);
+  anything else stays a plain branch label.
 - **Org charts** — `layout: tree` arranges a reporting hierarchy instead of a
   flow: every box is hung over the midpoint of its first and last report, levels
   are sized by their tallest box, and lines run out, along a shared bus, and in.

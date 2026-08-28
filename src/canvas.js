@@ -127,14 +127,25 @@ const SEAM_GAP_FALLBACK = 48;
 // the browser is not rendering, so this cannot be exercised end to end there.
 export function nearestNodeId(nodes, view) {
   const { scrollLeft = 0, scrollTop = 0, clientWidth = 0, clientHeight = 0,
-    stageLeft = 0, stageTop = 0, zoom = 1, horizontal = true } = view ?? {};
+    stageLeft = 0, stageTop = 0, zoom = 1, horizontal = true, loopSpan = 0 } = view ?? {};
   const cx = scrollLeft + clientWidth / 2 - stageLeft;
   const cy = scrollTop + clientHeight / 2 - stageTop;
+  // When the diagram loops, the strip repeats every loopSpan pixels: past the
+  // last step come the title and then the diagram again. Measuring in a
+  // straight line there pins the answer to the last step for the whole of the
+  // title and the whole of the repeat, so anything following the view gets
+  // stuck at the end instead of starting over. Measure around the loop.
+  const span = loopSpan > 0 ? loopSpan : 0;
+  const distance = (raw) => {
+    if (!span) return Math.abs(raw);
+    const wrapped = ((raw % span) + span) % span;
+    return Math.min(wrapped, span - wrapped);
+  };
   let best = null;
   for (const n of nodes ?? []) {
     const dx = (n.x + n.w / 2) * zoom - cx;
     const dy = (n.y + n.h / 2) * zoom - cy;
-    const d = horizontal ? Math.abs(dx) : Math.abs(dy);
+    const d = distance(horizontal ? dx : dy);
     if (best === null || d < best.d) best = { id: n.id, d };
   }
   return best?.id ?? null;
@@ -398,15 +409,41 @@ export function createCanvas(container, model, opts = {}) {
   // lands on identical pixels, so the wrap is invisible without reserving a
   // viewport of blank runway at each end. That runway was dead time: nothing to
   // look at between the title leaving and the flow coming back.
+  // How far it is from the start of the diagram to the start of its repeat, or
+  // 0 when the strip is not in place.
+  function loopSpanPx() {
+    if (!cloneWrap || !stage) return 0;
+    return scrollAxis() === 'left'
+      ? cloneWrap.offsetLeft - stage.offsetLeft
+      : cloneWrap.offsetTop - stage.offsetTop;
+  }
+
   function applyLoopPadding(on) {
     if (!on) {
+      if (!seam) return;
+      // Keep the same part of the diagram in view: without the lead spacer the
+      // scroll range shrinks and the browser clamps the position, which reads
+      // as the diagram jumping the moment the crawl is switched off.
+      const axis = scrollAxis();
+      const before = axis === 'left' ? container.scrollLeft : container.scrollTop;
+      const stageStart = axis === 'left' ? stage.offsetLeft : stage.offsetTop;
       for (const el of [gapBefore, seam, gapAfter, cloneWrap]) el?.remove();
       gapBefore = null;
       gapAfter = null;
       cloneWrap = null;
       seam = null;
-      stage.style.margin = '';
+      // Auto on both axes, not cleared: without the loop spacers there is
+      // nothing else holding the diagram in the middle, and a diagram smaller
+      // than the window sat jammed against the leading edge. Flexbox resolves
+      // auto margins to zero once the content overflows, so this centres what
+      // fits without making the start of a long diagram unreachable.
+      stage.style.margin = 'auto';
       container.style.flexDirection = '';
+      const shift = stageStart - (axis === 'left' ? stage.offsetLeft : stage.offsetTop);
+      const kept = Math.max(0, before - shift);
+      if (axis === 'left') container.scrollLeft = kept;
+      else container.scrollTop = kept;
+      scrollPos = kept;
       return;
     }
 
@@ -676,6 +713,7 @@ export function createCanvas(container, model, opts = {}) {
     // Which step is nearest the middle of the viewport right now.
     nearestNodeToCentre() {
       return nearestNodeId(model.nodes, {
+        loopSpan: loopSpanPx(),
         scrollLeft: container.scrollLeft,
         scrollTop: container.scrollTop,
         clientWidth: container.clientWidth,

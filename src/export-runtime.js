@@ -5,7 +5,7 @@ import { getPalette } from './palettes.js';
 import { attachRuntime } from './runtime.js';
 import { createCanvas } from './canvas.js';
 import { browserMeasure } from './measure.js';
-import { showIconsFor } from './icons.js';
+import { showIcons } from './icons.js';
 
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
@@ -24,7 +24,7 @@ export function bootExport() {
     direction: data.direction,
     density: data.density,
     measure: browserMeasure(spec, FONT_STACK),
-    iconSpace: showIconsFor(data.styleKey),
+    iconSpace: showIcons(data.styleKey, data.icons),
     loops: data.loops,
     layout: data.layout,
   });
@@ -35,6 +35,7 @@ export function bootExport() {
     meta: data.meta,
     details: data.details,
     colorBy: data.colorBy,
+    icons: data.icons,
   });
 
   let runtimeRef = null;

@@ -61,7 +61,16 @@
   .fm-pane{display:none;flex:1 1 auto;width:100%;min-width:0;margin:0;overflow:auto;padding:1rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;border:0;resize:none;background:var(--ui-bg);color:var(--ui-ink);white-space:pre-wrap;word-break:break-word}
   .fm-panes[data-pane="markdown"] .fm-pane[data-pane="markdown"],
   .fm-panes[data-pane="mermaid"] .fm-pane[data-pane="mermaid"],
-  .fm-panes[data-pane="html"] .fm-pane[data-pane="html"]{display:block}
+  .fm-panes[data-pane="html"] .fm-pane[data-pane="html"],
+  .fm-panes[data-pane="icons"] .fm-pane[data-pane="icons"]{display:block}
+  .fm-icon-guide{font-family:inherit;font-size:.9rem;white-space:normal}
+  .fm-icon-guide-lede{margin:0 0 .9rem;color:var(--ui-ink-dim)}
+  .fm-icon-guide code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86em;background:var(--ui-panel);border:1px solid var(--ui-border);border-radius:5px;padding:.05em .35em}
+  .fm-icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:.7rem}
+  .fm-icon-card{display:flex;gap:.65rem;align-items:flex-start;padding:.6rem .7rem;border:1px solid var(--ui-border);border-radius:10px;background:var(--ui-panel)}
+  .fm-icon-card svg{flex:0 0 auto;color:var(--ui-accent)}
+  .fm-icon-card code{display:inline-block;margin-bottom:.15rem}
+  .fm-icon-card span{display:block;color:var(--ui-ink-dim);line-height:1.4}
   .fm-pane:focus-visible{outline:2px solid var(--ui-accent);outline-offset:-2px}
 
   /* The reading view. Its chrome is neutral; only the embedded diagram carries

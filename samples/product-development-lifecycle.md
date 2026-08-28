@@ -5,6 +5,7 @@ style: blueprint
 palette: slate
 direction: LR
 density: standard
+icons: on
 ---
 
 ```mermaid
@@ -16,7 +17,13 @@ flowchart LR
   end
 
   subgraph arch [Architecture and Governance]
-    DESIGN[Draft Technical Design] --> REVIEW{Architecture Review}
+    subgraph design [Draft Technical Design]
+      DRAFT[Agent Drafts the Design]:::icon-agent
+      CRITIQUE[Architect Reviews It]:::icon-human
+      DRAFT -->|doc: Draft| CRITIQUE
+      CRITIQUE -->|retry: Changes| DRAFT
+    end
+    CRITIQUE -->|check: Complete| REVIEW{Architecture Review}
     REVIEW --> RISK[Record Risks and Decisions]
   end
 
@@ -32,7 +39,7 @@ flowchart LR
   end
 
   BCASE -->|Not funded| SHAPE
-  BCASE -->|Funded| DESIGN
+  BCASE -->|doc: Product Request| DRAFT
   RISK --> PLAN
   REVIEW -->|Rejected| SHAPE
   VERIFY -->|Defects found| BUILD
@@ -87,7 +94,7 @@ The case is deliberately coarse. Precision here is false comfort, since the esti
 
 **Owner:** Product leadership · **Outcome:** funded, or returned to shaping with the specific gap named.
 
-## DESIGN — Draft Technical Design
+## DRAFT — Agent Drafts the Design
 
 > Engineering writes the design: components, data flow, interfaces, and the migration path.
 
@@ -188,3 +195,20 @@ This is the step organisations skip, and skipping it is why the same mistakes re
 Findings are written as new opportunities and enter the funnel on equal footing with any other candidate, which keeps the lifecycle a cycle rather than a pipeline.
 
 **Owner:** Product · **Loops back to:** Identify Opportunity
+
+## CRITIQUE — Architect Reviews It
+
+> A person reads what the agent drafted and either sends it back with changes or passes it on.
+
+The draft comes from an agent working from the product request; the judgement
+about whether it is right does not. This is the loop where most of the design
+actually happens: the agent is fast at producing a complete document and poor at
+knowing which constraints matter here, and the architect is the reverse.
+
+| Sent back for | Passed on when |
+| --- | --- |
+| A constraint the agent could not know | The trade-offs are stated, not just the choice |
+| A trade-off asserted rather than argued | Every system of record it touches is named |
+| An integration the draft invented | The risks are ones the review can act on |
+
+**Owner:** Architecture · **Typical loops:** two or three before it goes forward

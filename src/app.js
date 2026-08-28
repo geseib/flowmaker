@@ -1,9 +1,9 @@
-import { DEFAULTS, STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, COLOR_BY_KEYS } from './constants.js';
+import { DEFAULTS, STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, COLOR_BY_KEYS, ICON_MODE_KEYS } from './constants.js';
 import { PALETTES } from './palettes.js';
 import { parseDocument } from './parse.js';
 import { parseMermaid } from './mermaid.js';
 import { layout } from './layout.js';
-import { showIconsFor } from './icons.js';
+import { showIcons } from './icons.js';
 
 const PALETTE_KEYS = PALETTES.map((p) => p.key);
 
@@ -35,6 +35,7 @@ export function resolveDocument(mdText, overrides = {}, measure) {
     loops: overrides.loops ?? pick('loops', doc.meta.loops, LOOP_KEYS, DEFAULTS.loops, warnings),
     layout: overrides.layout ?? pick('layout', doc.meta.layout, LAYOUT_KEYS, DEFAULTS.layout, warnings),
     colorBy: overrides.colorBy ?? pick('colorBy', doc.meta.colorBy, COLOR_BY_KEYS, DEFAULTS.colorBy, warnings),
+    icons: overrides.icons ?? pick('icons', doc.meta.icons, ICON_MODE_KEYS, DEFAULTS.icons, warnings),
   };
 
   // The cross-check parse.js could not do: it has no node list.
@@ -60,7 +61,7 @@ export function resolveDocument(mdText, overrides = {}, measure) {
     direction: meta.direction,
     density: meta.density,
     measure,
-    iconSpace: showIconsFor(meta.style),
+    iconSpace: showIcons(meta.style, meta.icons),
     loops: meta.loops,
   });
 

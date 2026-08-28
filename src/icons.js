@@ -27,14 +27,106 @@ export const ICONS = {
   chart: `<line ${S} x1="4" y1="20" x2="20" y2="20"/><rect x="6" y="12" width="3.2" height="6" fill="currentColor"/><rect x="10.4" y="8" width="3.2" height="10" fill="currentColor"/><rect x="14.8" y="4.5" width="3.2" height="13.5" fill="currentColor"/>`,
   code: `<polyline ${S} points="8.4 8 4 12 8.4 16"/><polyline ${S} points="15.6 8 20 12 15.6 16"/><line ${S} x1="13.4" y1="5.6" x2="10.6" y2="18.4"/>`,
   lock: `<rect ${S} x="4.6" y="10.4" width="14.8" height="10" rx="2"/><path ${S} d="M8.4 10.4V7.6a3.6 3.6 0 0 1 7.2 0v2.8"/>`,
+  human: `<circle ${S} cx="12" cy="7.4" r="3.4"/><path ${S} d="M5.4 20.4a6.6 6.6 0 0 1 13.2 0"/><path ${S} d="M12 10.8v3"/>`,
+  team: `<circle ${S} cx="8.6" cy="8.6" r="3"/><circle ${S} cx="16.4" cy="9.4" r="2.4"/><path ${S} d="M3.4 19a5.2 5.2 0 0 1 10.4 0"/><path ${S} d="M14.6 15.6a4.4 4.4 0 0 1 6 3.4"/>`,
+  handoff: `<path ${S} d="M3 12h13"/><polyline ${S} points="12.4 7.6 17 12 12.4 16.4"/><path ${S} d="M19.4 5.6v12.8"/>`,
+  review: `<path ${S} d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/><polyline ${S} points="14 3 14 8 19 8"/><polyline ${S} points="8.6 13.6 10.6 15.6 15 11"/>`,
+  contract: `<path ${S} d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><polyline ${S} points="14 3 14 8 19 8"/><path ${S} d="M8.6 16.6c1.6-2.4 2.6-2.4 3.4-.8s1.8 1.2 3.4-1.2"/>`,
+  form: `<rect ${S} x="4.6" y="3" width="14.8" height="18" rx="2"/><line ${S} x1="8" y1="8" x2="16" y2="8"/><line ${S} x1="8" y1="12" x2="16" y2="12"/><line ${S} x1="8" y1="16" x2="12.4" y2="16"/>`,
+  api: `<rect ${S} x="3" y="7.4" width="18" height="9.2" rx="3"/><line ${S} x1="8.4" y1="12" x2="8.4" y2="12"/><circle cx="8.4" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="15.6" cy="12" r="1.2" fill="currentColor"/>`,
+  cloud: `<path ${S} d="M7.4 18.6a4.4 4.4 0 0 1-.4-8.8 5.6 5.6 0 0 1 10.7 1.3 3.8 3.8 0 0 1-.7 7.5z"/>`,
+  queue: `<rect ${S} x="3" y="6" width="4.4" height="12" rx="1.4"/><rect ${S} x="9.8" y="6" width="4.4" height="12" rx="1.4"/><rect ${S} x="16.6" y="6" width="4.4" height="12" rx="1.4"/>`,
+  retry: `<path ${S} d="M20.4 12a8.4 8.4 0 1 1-2.5-6"/><polyline ${S} points="20.6 3.8 20.6 9 15.4 9"/>`,
+  stop: `<circle ${S} cx="12" cy="12" r="9"/><line ${S} x1="8.2" y1="8.2" x2="15.8" y2="15.8"/>`,
+  flag: `<path ${S} d="M5.4 21V4"/><path ${S} d="M5.4 5.2h11.4l-2 3.4 2 3.4H5.4z"/>`,
+  calendar: `<rect ${S} x="3.6" y="5.4" width="16.8" height="15" rx="2"/><line ${S} x1="3.6" y1="10" x2="20.4" y2="10"/><line ${S} x1="8.4" y1="3" x2="8.4" y2="6.6"/><line ${S} x1="15.6" y1="3" x2="15.6" y2="6.6"/>`,
 };
 
 export const ICON_NAMES = Object.keys(ICONS);
+
+// The other names people reach for. Writing `doc:` rather than `document:` is
+// what anyone actually types, and being told it is not an icon helps nobody.
+export const ICON_ALIASES = {
+  doc: 'document', file: 'document', spec: 'document', report: 'chart',
+  bot: 'agent', robot: 'agent', ai: 'agent', llm: 'agent',
+  user: 'person', customer: 'person', people: 'team', group: 'team',
+  db: 'database', warehouse: 'database', store: 'database',
+  warn: 'alert', warning: 'alert', error: 'alert', fail: 'stop', reject: 'stop',
+  ok: 'check', approved: 'check', done: 'check', pass: 'check',
+  cal: 'calendar', schedule: 'calendar', wait: 'clock', sla: 'clock',
+  msg: 'mail', email: 'mail', notify: 'mail',
+  pkg: 'box', package: 'box', ship: 'truck', deliver: 'truck',
+  rework: 'retry', resubmit: 'retry', payment: 'money', invoice: 'money',
+  sheet: 'table', spreadsheet: 'table', service: 'api', endpoint: 'api',
+  policy: 'shield', compliance: 'shield', secure: 'lock',
+  signoff: 'review', approve: 'review', milestone: 'flag', launch: 'flag',
+  handover: 'handoff', queue: 'queue',
+};
+
+// The icon a name refers to, whichever of its names was used.
+export function resolveIconName(name) {
+  const key = String(name ?? '').trim().toLowerCase();
+  if (ICONS[key]) return key;
+  const alias = ICON_ALIASES[key];
+  return alias && ICONS[alias] ? alias : null;
+}
+
+// What each icon is for. The studio renders this as a reference sheet and the
+// authoring prompt hands it to whoever is writing the file, so a tag is chosen
+// from a list rather than guessed at.
+export const ICON_GUIDE = {
+  document: 'A document, spec, or written artifact handed from one step to the next.',
+  review: 'A document that has been checked and signed off.',
+  contract: 'A signed agreement: a contract, an SOW, a terms acceptance.',
+  form: 'A form or application someone fills in.',
+  table: 'A spreadsheet, a report, or tabular data.',
+  chart: 'Analysis, metrics, or a result being reported.',
+  database: 'A system of record: a database or warehouse the step reads or writes.',
+  folder: 'A collection of files, a case file, or a repository.',
+  api: 'A call to a service or an interface between systems.',
+  cloud: 'A hosted or third-party service outside your own systems.',
+  queue: 'Work waiting in a queue, a batch, or a backlog.',
+  code: 'Code: a change, a build, or a deployment artifact.',
+  decision: 'A branch point where the flow chooses a path.',
+  check: 'A successful outcome: approved, passed, complete.',
+  stop: 'A terminal failure: rejected, cancelled, abandoned.',
+  alert: 'Something has gone wrong and needs attention.',
+  retry: 'Work going back to be done again: rework, resubmission, a retry.',
+  clock: 'Waiting: an SLA, a delay, or a timed step.',
+  calendar: 'A scheduled or recurring step.',
+  human: 'A step a person does, as opposed to a system.',
+  person: 'A named individual, a role, or a customer.',
+  team: 'A group, a department, or a committee.',
+  agent: 'A step an automated agent or bot does, as opposed to a person.',
+  gear: 'Automated processing or configuration.',
+  handoff: 'Work passing from one owner to another.',
+  money: 'Payment, billing, cost, or revenue.',
+  mail: 'A notification, an email, or a message sent.',
+  search: 'Investigation, lookup, or discovery.',
+  shield: 'A control, a policy, or a compliance gate.',
+  lock: 'Access control, encryption, or something restricted.',
+  flag: 'A milestone, a launch, or something raised for attention.',
+  box: 'A package, a release, or a physical item.',
+  truck: 'Shipping, delivery, or logistics.',
+  start: 'Where the flow begins.',
+  end: 'Where the flow finishes.',
+};
+
 
 // Only the Infographic style shows icons. Layout reserves vertical space and
 // the renderer emits the slot based on this, so the two never disagree.
 export function showIconsFor(styleKey) {
   return styleKey === 'infographic';
+}
+
+// Icons are a property of the document, not of the style. Infographic is built
+// around them so it shows them by default, but any style can carry them and a
+// diagram that has been tagged for icons should not lose them on a style
+// change. `auto` keeps the old behaviour, which is what most files want.
+export function showIcons(styleKey, mode = 'auto') {
+  if (mode === 'on') return true;
+  if (mode === 'off') return false;
+  return showIconsFor(styleKey);
 }
 
 // Ordered: the first matching entry wins, so the more specific words come first.

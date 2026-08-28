@@ -88,7 +88,7 @@ test('records class assignments on nodes', () => {
 
 test('a self loop is a real edge', () => {
   assert.deepEqual(parseMermaid('flowchart LR\nA --> A').edges,
-    [{ from: 'A', to: 'A', label: '', kind: 'solid', arrow: 'arrow' }]);
+    [{ from: 'A', to: 'A', label: '', icon: null, kind: 'solid', arrow: 'arrow' }]);
 });
 
 test('an unsupported diagram type warns and names the type', () => {
@@ -137,4 +137,44 @@ test('a class after the label does not swallow the connector', () => {
 test('a trailing colon that is not a class is left alone', () => {
   const g = parseMermaid('flowchart LR\nA[Start] --> B[End]');
   assert.deepEqual(g.nodes.map((n) => n.classes), [[], []]);
+});
+
+// --- an edge that carries something ----------------------------------------
+
+test('an edge can hand something over, named by an icon', () => {
+  const g = parseMermaid('flowchart LR\nA -->|doc: Product Request| B');
+  assert.equal(g.edges[0].label, 'Product Request', 'the prefix is not part of the label');
+  assert.equal(g.edges[0].icon, 'document');
+});
+
+test('the icon can be written by its own name or a name people reach for', () => {
+  const by = (src) => parseMermaid(`flowchart LR\nA -->|${src}| B`).edges[0].icon;
+  assert.equal(by('document: Spec'), 'document');
+  assert.equal(by('doc: Spec'), 'document');
+  assert.equal(by('DOC: Spec'), 'document', 'and it is not case sensitive');
+  assert.equal(by('payment: Invoice'), 'money');
+  assert.equal(by('robot: Draft'), 'agent');
+});
+
+test('an ordinary branch label is left exactly as written', () => {
+  const g = parseMermaid('flowchart LR\nA -->|Approved| B\nB -->|Not funded| A');
+  assert.deepEqual(g.edges.map((e) => [e.label, e.icon]), [['Approved', null], ['Not funded', null]]);
+});
+
+test('a label that merely contains a colon is not mistaken for one', () => {
+  const g = parseMermaid('flowchart LR\nA -->|Note: see section 3| B');
+  assert.equal(g.edges[0].label, 'Note: see section 3');
+  assert.equal(g.edges[0].icon, null);
+});
+
+test('an unknown prefix is left alone rather than dropped', () => {
+  const g = parseMermaid('flowchart LR\nA -->|banana: Spec| B');
+  assert.equal(g.edges[0].label, 'banana: Spec');
+  assert.equal(g.edges[0].icon, null);
+});
+
+test('a prefix with nothing after it is just a label', () => {
+  const g = parseMermaid('flowchart LR\nA -->|doc:| B');
+  assert.equal(g.edges[0].label, 'doc:');
+  assert.equal(g.edges[0].icon, null);
 });
