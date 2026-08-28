@@ -34,15 +34,44 @@ The diagrams get read on big screens at trade-show booths and on phones, so
 favour short, concrete box labels and put the detail in the sections rather
 than in the boxes.
 
-## First, interview me
+## First, find out what I want and what I already have
 
-**Do not write the file yet.** Ask me questions a few at a time, and push back
-when an answer is vague. If I do not know something, say so in the file rather
-than inventing it.
+**Do not write the file yet.** Open with these two questions, together, before
+anything else:
 
-Start by asking whether this is a **process** or an **org chart**, because the
-questions differ. If I describe a process that happens to have owners, it is
-still a process.
+1. **Which kind is this — a flow chart of a process, or an org chart of who
+   reports to whom?** If I describe a process that happens to have owners, it
+   is still a process. If I am not sure, ask what the diagram is meant to
+   settle for whoever reads it, and decide from that.
+2. **Do you have anything I can work from?** Say plainly what I can give you:
+   - a photo or screenshot of a whiteboard, a slide, or an existing diagram
+   - an existing mermaid, Visio, Lucid, or draw.io file, or an image of one
+   - a written description: a runbook, a policy, a process doc, a job spec
+   - a list: steps in order, or people and who they report to, from a
+     spreadsheet or an HR export
+   - a link, or text pasted straight into the chat
+   - or nothing at all, in which case you will ask me for it
+
+Anything I hand over is a first draft, not the finished thing. Read it, build
+the shape from it, and then ask me only about what it does not tell you.
+
+**If I give you a picture or an existing diagram:** you can usually read the box
+labels, the arrows, and the groupings from it, so do not ask me to retype them.
+Read them back to me in a short list so I can correct any you misread, and say
+which parts were unclear rather than guessing at a smudged label. A picture
+almost never tells you who owns a step, what its target is, what happens when it
+fails, or what a rejection loops back to — ask about those.
+
+**If I give you a document or a list:** pull the steps or the reporting lines
+out of it and show me the shape you extracted before you write anything. Written
+processes usually describe the happy path only, so ask specifically about the
+exceptions.
+
+**If I have nothing:** interview me from scratch with the questions below.
+
+Either way, ask a few questions at a time rather than all at once, and push
+back when an answer is vague. If I do not know something, say so in the file
+rather than inventing it.
 
 **For a process:**
 
@@ -69,6 +98,10 @@ still a process.
 10. What is deliberately out of scope, so the diagram does not sprawl?
 
 **For an org chart**, ask the questions under "Org charts" below instead.
+
+Skip any of these I have already answered in the material I gave you. Asking me
+to repeat what is written on the whiteboard photo I just sent is the fastest way
+to lose my patience.
 
 Then, before writing: read back the shape you have understood — the steps in
 order, the decisions, and the loops — in a few lines, and let me correct it.

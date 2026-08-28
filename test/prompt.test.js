@@ -124,3 +124,26 @@ test('it explains tags, which are the author\'s own vocabulary', () => {
   assert.match(p, /:::vp|:::<tag>/, 'tagging syntax must be shown');
   assert.match(p, /four categories|four colours/, 'the four-colour limit must be stated');
 });
+
+test('it asks which kind of diagram, and what material already exists', () => {
+  const p = buildAuthoringPrompt();
+  const head = p.slice(0, p.indexOf('## Then write the file'));
+  assert.match(head, /flow chart of a process, or an org chart/i, 'it must ask which kind');
+  assert.match(head, /Do you have anything I can work from/i, 'it must ask for existing material');
+  for (const source of ['photo', 'screenshot', 'spreadsheet', 'link', 'nothing at all']) {
+    assert.ok(head.toLowerCase().includes(source), `it should offer "${source}" as a way in`);
+  }
+});
+
+test('it says what a picture can and cannot tell you', () => {
+  const head = buildAuthoringPrompt();
+  assert.match(head, /read the box\s*\n?labels, the arrows, and the groupings/i);
+  assert.match(head, /do not ask me to retype them/i, 'it must not re-ask for what it can read');
+  assert.match(head, /read them back to me/i, 'it must confirm what it read');
+  assert.match(head, /almost never tells you who owns a step/i, 'it must ask for what a picture omits');
+});
+
+test('it does not re-ask what the supplied material already answered', () => {
+  const p = buildAuthoringPrompt();
+  assert.match(p, /Skip any of these I have already answered/i);
+});
