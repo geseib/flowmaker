@@ -196,7 +196,9 @@ export function parseMermaid(src) {
     const sg = line.match(/^subgraph[ \t]+([A-Za-z0-9_.\-]+)(?:[ \t]*\[[ \t]*(.*?)[ \t]*\])?[ \t]*$/);
     if (sg) {
       const id = sg[1];
-      subgraphs.push({ id, label: unquote(sg[2] ?? id), nodeIds: [] });
+      // A subgraph opened inside another belongs to it, so the outer box can be
+      // drawn around the inner one rather than beside it.
+      subgraphs.push({ id, label: unquote(sg[2] ?? id), parent: stack.at(-1) ?? null, nodeIds: [] });
       stack.push(id);
       continue;
     }

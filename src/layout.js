@@ -132,6 +132,70 @@ export function orderRanks(nodes, edges, ranks) {
   return pos;
 }
 
+// A subgraph's box has to hold everything inside it, including any subgraph
+// nested within it. Measuring only its own direct members draws the outer box
+// around part of its contents and leaves the inner one hanging outside, which
+// says the opposite of what the nesting means.
+//
+// Boxes are built from the inside out: a child is sized first, then its parent
+// is sized to contain it with a clear margin between the two borders and room
+// above for the parent's own label.
+export function layoutSubgraphs(declared, nodeById) {
+  const byId = new Map(declared.map((sg) => [sg.id, sg]));
+  const childrenOf = new Map(declared.map((sg) => [sg.id, []]));
+  for (const sg of declared) {
+    const parent = sg.parent && byId.has(sg.parent) && sg.parent !== sg.id ? sg.parent : null;
+    if (parent) childrenOf.get(parent).push(sg.id);
+  }
+
+  const done = new Map();
+  const building = new Set();
+
+  function build(id) {
+    if (done.has(id)) return done.get(id);
+    const sg = byId.get(id);
+    // A subgraph declared inside itself is not a nesting; treat it as flat
+    // rather than recursing forever.
+    if (!sg || building.has(id)) return null;
+    building.add(id);
+
+    const members = sg.nodeIds.map((nid) => nodeById.get(nid)).filter(Boolean);
+    const boxes = (childrenOf.get(id) ?? []).map(build).filter((b) => b && b.w > 0);
+    building.delete(id);
+
+    if (members.length === 0 && boxes.length === 0) {
+      const empty = { id: sg.id, label: sg.label, parent: sg.parent ?? null, depth: 0, x: 0, y: 0, w: 0, h: 0 };
+      done.set(id, empty);
+      return empty;
+    }
+
+    const lefts = [...members.map((n) => n.x), ...boxes.map((b) => b.x)];
+    const tops = [...members.map((n) => n.y), ...boxes.map((b) => b.y)];
+    const rights = [...members.map((n) => n.x + n.w), ...boxes.map((b) => b.x + b.w)];
+    const bottoms = [...members.map((n) => n.y + n.h), ...boxes.map((b) => b.y + b.h)];
+
+    const depth = boxes.length ? Math.max(...boxes.map((b) => b.depth)) + 1 : 0;
+    const x = Math.min(...lefts) - SUBGRAPH_PAD;
+    const y = Math.min(...tops) - SUBGRAPH_PAD - SUBGRAPH_HEADER;
+    const box = {
+      id: sg.id,
+      label: sg.label,
+      parent: sg.parent ?? null,
+      depth,
+      x,
+      y,
+      w: Math.max(...rights) + SUBGRAPH_PAD - x,
+      h: Math.max(...bottoms) + SUBGRAPH_PAD - y,
+    };
+    done.set(id, box);
+    return box;
+  }
+
+  for (const sg of declared) build(sg.id);
+  // Declaration order, so the outer boxes still paint before the inner ones.
+  return declared.map((sg) => done.get(sg.id)).filter(Boolean);
+}
+
 export function layout(graph, opts = {}) {
   // A hierarchy is arranged by its own rules. If the graph is not one, say why
   // and fall back rather than drawing a chart that misrepresents it.
@@ -226,20 +290,7 @@ export function layout(graph, opts = {}) {
   if (direction === 'BT') for (const n of nodes) n.y = mainExtent - n.y - n.h;
 
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
-  const subgraphs = (graph.subgraphs ?? []).map((sg) => {
-    const members = sg.nodeIds.map((id) => nodeById.get(id)).filter(Boolean);
-    if (members.length === 0) return { id: sg.id, label: sg.label, x: 0, y: 0, w: 0, h: 0 };
-    const x = Math.min(...members.map((n) => n.x)) - SUBGRAPH_PAD;
-    const y = Math.min(...members.map((n) => n.y)) - SUBGRAPH_PAD - SUBGRAPH_HEADER;
-    return {
-      id: sg.id,
-      label: sg.label,
-      x,
-      y,
-      w: Math.max(...members.map((n) => n.x + n.w)) + SUBGRAPH_PAD - x,
-      h: Math.max(...members.map((n) => n.y + n.h)) + SUBGRAPH_PAD - y,
-    };
-  });
+  const subgraphs = layoutSubgraphs(graph.subgraphs ?? [], nodeById);
 
   // Shift everything positive: subgraph headers can push above the origin.
   const dx = -Math.min(0, ...nodes.map((n) => n.x), ...subgraphs.map((s) => s.x));

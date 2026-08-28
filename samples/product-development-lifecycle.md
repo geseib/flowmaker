@@ -23,8 +23,21 @@ flowchart LR
       DRAFT -->|doc: Draft| CRITIQUE
       CRITIQUE -->|retry: Changes| DRAFT
     end
-    CRITIQUE -->|check: Complete| REVIEW{Architecture Review}
-    REVIEW --> RISK[Record Risks and Decisions]
+    subgraph panel [Architecture Review]
+      SECREV[Security Architect]:::icon-human
+      DATAREV[Data Architect]:::icon-human
+      PRINC[Principal Engineer]:::icon-human
+      POLICY[Policy Check Agent]:::icon-agent
+    end
+    CRITIQUE -->|check: Complete| SECREV
+    CRITIQUE --> DATAREV
+    CRITIQUE --> PRINC
+    CRITIQUE --> POLICY
+    SECREV --> VERDICT{Review Verdict}
+    DATAREV --> VERDICT
+    PRINC --> VERDICT
+    POLICY --> VERDICT
+    VERDICT --> RISK[Record Risks and Decisions]
   end
 
   subgraph sdlc [SDLC]
@@ -41,7 +54,7 @@ flowchart LR
   BCASE -->|Not funded| SHAPE
   BCASE -->|doc: Product Request| DRAFT
   RISK --> PLAN
-  REVIEW -->|Rejected| SHAPE
+  VERDICT -->|doc: Review Notes| SHAPE
   VERIFY -->|Defects found| BUILD
   RELEASE --> OPERATE
   HEALTH -->|Incident| BUILD
@@ -104,15 +117,60 @@ Where the change touches a shared interface or a system of record, the design na
 
 **Owner:** Engineering · **Reviewed by:** the architecture forum
 
-## REVIEW — Architecture Review
+## SECREV — Security Architect
 
-> The governance gate: a standing forum checks the design against the target architecture and standards.
+> Reviews the design for the security posture it creates, and can hold it alone.
 
-Review is not a rubber stamp and it is not a design competition. It asks a specific set of questions: does this fit the target architecture, does it create a new single point of failure, does it duplicate an existing capability, and is the data handling defensible.
+Looks at what the design exposes, what it trusts, and where customer data comes
+to rest. Holds a veto rather than a vote: a design that widens the attack
+surface without saying so does not go forward on a majority.
 
-A rejection returns the work to shaping rather than to design, because a design rejected on architectural grounds usually needs its scope reconsidered, not just its diagram redrawn.
+**Asks:** what is newly exposed, what is newly trusted, where does the data rest
 
-**Owner:** Architecture forum · **Loops back to:** Shape the Solution
+## DATAREV — Data Architect
+
+> Reviews what the design does to the data: ownership, duplication, and the definitions everyone reports against.
+
+The question is rarely whether the data can be moved. It is who owns it
+afterwards, whether a second copy of a system of record has just been created,
+and whether an existing metric quietly changes meaning.
+
+**Asks:** who owns it, is this a second copy, does a definition move
+
+## PRINC — Principal Engineer
+
+> Reviews whether the design can actually be built and run by the team that owns it.
+
+The review most often skipped and most often right. Judges the design against
+the team's real capacity and on-call load, not against an idealised one, and
+against what the codebase looks like today.
+
+**Asks:** can this team build it, can this team run it at 3am
+
+## POLICY — Policy Check Agent
+
+> Runs the mechanical checks before the people meet, so the forum spends its time on judgement.
+
+Checks the draft against the standards catalogue, the approved technology list,
+the data residency rules, and the decision register for a prior contradicting
+decision. Everything here is checkable without judgement, which is exactly why
+a person should not be doing it.
+
+**Runs:** on every draft, before the forum sits · **Blocks:** nothing on its own
+
+## VERDICT — Review Verdict
+
+> The four reviews come together: the design goes forward, or it goes back with notes.
+
+Not a vote. The verdict records what each reviewer raised and what was decided
+about it, which is what makes the notes usable when the work comes back.
+
+A rejection returns to shaping rather than to design, because a design rejected
+on architectural grounds usually needs its scope reconsidered rather than its
+diagram redrawn. It goes back carrying the review notes, so the product team is
+answering specific objections rather than guessing at them.
+
+**Owner:** Architecture forum · **Goes back to:** Shape the Solution, with notes
 
 ## RISK — Record Risks and Decisions
 

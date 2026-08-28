@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { layout, removeCycles, assignRanks, orderRanks } from '../src/layout.js';
 import { parseMermaid } from '../src/mermaid.js';
+import { readdirSync, readFileSync } from 'node:fs';
+import { resolveDocument } from '../src/app.js';
 
 const build = (src, opts = {}) => layout(parseMermaid(src), opts);
 const byId = (m, id) => m.nodes.find((n) => n.id === id);
@@ -199,4 +201,123 @@ test('an empty graph yields empty, valid bounds', () => {
   const m = layout({ direction: 'LR', nodes: [], edges: [], subgraphs: [], warnings: [] });
   assert.deepEqual(m.nodes, []);
   assert.ok(m.bounds.w >= 0 && m.bounds.h >= 0);
+});
+
+// --- nested groups ---------------------------------------------------------
+
+const boxesOf = (src) => {
+  const model = layout(parseMermaid(src), {});
+  return {
+    model,
+    boxes: model.subgraphs.filter((s) => s.w > 0),
+    by: Object.fromEntries(model.subgraphs.map((s) => [s.id, s])),
+  };
+};
+const contains = (p, c) => c.x >= p.x && c.y >= p.y && c.x + c.w <= p.x + p.w && c.y + c.h <= p.y + p.h;
+const boxesTouch = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+const NESTED = [
+  'flowchart LR',
+  'subgraph outer [Outer]',
+  '  subgraph inner [Inner]',
+  '    A[One] --> B[Two]',
+  '  end',
+  '  B --> C[Three]',
+  'end',
+  'C --> D[Four]',
+].join('\n');
+
+test('a group declared inside another records which one', () => {
+  const { by } = boxesOf(NESTED);
+  assert.equal(by.inner.parent, 'outer');
+  assert.equal(by.outer.parent, null);
+});
+
+test('a group is drawn around the groups nested in it, not beside them', () => {
+  const { by } = boxesOf(NESTED);
+  assert.ok(contains(by.outer, by.inner), 'the inner box escapes its parent');
+});
+
+test('the two borders do not touch, so the nesting is visible', () => {
+  const { by } = boxesOf(NESTED);
+  assert.ok(by.inner.x - by.outer.x >= 12, 'no clearance on the left');
+  assert.ok((by.outer.x + by.outer.w) - (by.inner.x + by.inner.w) >= 12, 'none on the right');
+  assert.ok(by.inner.y - by.outer.y >= 12, 'the parent label has nowhere to sit');
+});
+
+test('a group holds its own steps as well as its nested groups', () => {
+  const { model, by } = boxesOf(NESTED);
+  const node = (id) => model.nodes.find((n) => n.id === id);
+  for (const id of ['A', 'B']) assert.ok(contains(by.inner, node(id)), `${id} is outside inner`);
+  for (const id of ['A', 'B', 'C']) assert.ok(contains(by.outer, node(id)), `${id} is outside outer`);
+});
+
+test('a step outside every group stays outside them', () => {
+  const { model, by } = boxesOf(NESTED);
+  const d = model.nodes.find((n) => n.id === 'D');
+  assert.equal(boxesTouch(by.outer, d), false, 'D was swept into a group it is not in');
+});
+
+test('nesting goes as deep as it is written', () => {
+  const { by } = boxesOf([
+    'flowchart LR',
+    'subgraph a [A]',
+    '  subgraph b [B]',
+    '    subgraph c [C]',
+    '      X[One] --> Y[Two]',
+    '    end',
+    '  end',
+    'end',
+  ].join('\n'));
+  assert.ok(contains(by.b, by.c), 'C escapes B');
+  assert.ok(contains(by.a, by.b), 'B escapes A');
+  assert.equal(by.a.depth, 2);
+  assert.equal(by.c.depth, 0);
+});
+
+test('groups that are not nested do not overlap each other', () => {
+  const { boxes } = boxesOf([
+    'flowchart LR',
+    'subgraph one [One]', '  A --> B', 'end',
+    'subgraph two [Two]', '  C --> D', 'end',
+    'B --> C',
+  ].join('\n'));
+  for (let i = 0; i < boxes.length; i += 1) {
+    for (let j = i + 1; j < boxes.length; j += 1) {
+      const a = boxes[i];
+      const b = boxes[j];
+      if (contains(a, b) || contains(b, a)) continue;
+      assert.equal(boxesTouch(a, b), false, `${a.id} overlaps ${b.id} without containing it`);
+    }
+  }
+});
+
+test('a group declared inside itself is drawn rather than hanging the layout', () => {
+  const graph = parseMermaid('flowchart LR\nsubgraph a [A]\n  X --> Y\nend');
+  graph.subgraphs[0].parent = 'a';
+  const model = layout(graph, {});
+  assert.equal(model.subgraphs.length, 1);
+  assert.ok(model.subgraphs[0].w > 0);
+});
+
+test('every sample keeps its nested groups inside their parents', () => {
+  const dir = new URL('../samples/', import.meta.url);
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.md'))) {
+    const doc = resolveDocument(readFileSync(new URL(file, dir), 'utf8'));
+    const by = Object.fromEntries(doc.model.subgraphs.map((s) => [s.id, s]));
+    const boxes = doc.model.subgraphs.filter((s) => s.w > 0);
+    for (const b of boxes) {
+      if (b.parent && by[b.parent]) {
+        assert.ok(contains(by[b.parent], b), `${file}: ${b.id} escapes ${b.parent}`);
+      }
+    }
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const a = boxes[i];
+        const b = boxes[j];
+        if (contains(a, b) || contains(b, a)) continue;
+        assert.equal(boxesTouch(a, b), false, `${file}: ${a.id} overlaps ${b.id}`);
+      }
+    }
+  }
 });
