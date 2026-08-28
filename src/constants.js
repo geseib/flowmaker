@@ -16,6 +16,9 @@ export const DIRECTION_KEYS = ['LR', 'RL', 'TD', 'BT'];
 //   tree - a hierarchy: one parent per box, children centred beneath it
 export const LAYOUT_KEYS = ['flow', 'tree'];
 
+// What decides which of the palette's four swatches a node wears.
+export const COLOR_BY_KEYS = ['type', 'level', 'group'];
+
 export const LOOP_KEYS = ['auto', 'line', 'wrap'];
 
 // Playback speed multipliers offered next to the zoom controls. They scale the
@@ -30,6 +33,7 @@ export const DEFAULTS = {
   density: 'standard',
   loops: 'auto',
   layout: 'flow',
+  colorBy: 'type',
 };
 
 // Hard cap on node width. Beyond this a label wraps instead of stretching.

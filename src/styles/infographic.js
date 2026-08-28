@@ -20,29 +20,23 @@ export default {
    ring, and the connectors, while the label stays high-contrast ink. */
 .fm-node-shape {
   fill: var(--surface);
-  stroke: var(--c1);
+  stroke: var(--tone);
   stroke-width: calc(var(--stroke) * 1.5);
   transition: stroke-width .18s ease, filter .18s ease;
 }
-.fm-node[data-kind="decision"] .fm-node-shape { stroke: var(--c2); }
-.fm-node[data-kind="terminal"] .fm-node-shape { stroke: var(--c3); }
-.fm-node-rule { stroke: var(--c1); stroke-width: var(--stroke); }
+.fm-node-rule { stroke: var(--tone); stroke-width: var(--stroke); }
 .fm-node-rail { display: none; }
 .fm-node-label { fill: var(--ink); font-size: ${spec.fontSize}px; font-weight: 650; letter-spacing: .04em; }
 
 /* The icon sits inside its own ring, the motif the reference infographics use. */
-.fm-node-icon { display: block; color: var(--c1); }
-.fm-node[data-kind="decision"] .fm-node-icon { color: var(--c2); }
-.fm-node[data-kind="terminal"] .fm-node-icon { color: var(--c3); }
+.fm-node-icon { display: block; color: var(--tone); }
 .fm-node-icon [stroke] { stroke-width: ${Math.max(1.5, spec.stroke * 0.72)}; }
 .fm-node-badge {
   display: block;
   fill: var(--surface);
-  stroke: var(--c1);
+  stroke: var(--tone);
   stroke-width: calc(var(--stroke) * 1.15);
 }
-.fm-node[data-kind="decision"] .fm-node-badge { stroke: var(--c2); }
-.fm-node[data-kind="terminal"] .fm-node-badge { stroke: var(--c3); }
 
 .fm-node[data-has-detail="true"] { cursor: pointer; }
 .fm-node:hover .fm-node-shape, .fm-node:focus-visible .fm-node-shape { stroke-width: calc(var(--stroke) * 2.4); }

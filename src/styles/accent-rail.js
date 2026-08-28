@@ -25,12 +25,10 @@ export default {
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / .06)) drop-shadow(0 6px 16px rgb(0 0 0 / .07));
   transition: filter .18s ease;
 }
-.fm-node-rail { display: block; fill: var(--c1); stroke: none; }
-.fm-node[data-kind="decision"] .fm-node-rail { fill: var(--c2); }
-.fm-node[data-kind="terminal"] .fm-node-rail { fill: var(--c3); }
+.fm-node-rail { display: block; fill: var(--tone); stroke: none; }
 /* Shapes with no rail (diamonds, circles) carry the colour on their outline. */
-.fm-node[data-kind="decision"] .fm-node-shape { stroke: var(--c2); stroke-width: calc(var(--stroke) * 1.2); }
-.fm-node[data-kind="terminal"] .fm-node-shape { stroke: var(--c3); stroke-width: calc(var(--stroke) * 1.2); }
+.fm-node[data-kind="decision"] .fm-node-shape,
+.fm-node[data-kind="terminal"] .fm-node-shape { stroke: var(--tone); stroke-width: calc(var(--stroke) * 1.2); }
 .fm-node-rule { stroke: var(--border); stroke-width: var(--stroke); }
 .fm-node-label { fill: var(--ink); font-size: ${spec.fontSize}px; font-weight: 600; letter-spacing: -.005em; }
 .fm-node-icon { display: none; }

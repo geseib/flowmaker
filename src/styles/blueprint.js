@@ -18,10 +18,8 @@ export default {
 .fm-svg { display: block; }
 .fm-subgraph rect { fill: none; stroke: color-mix(in oklab, var(--c1) 55%, transparent); stroke-width: var(--stroke); stroke-dasharray: 6 5; rx: 2px; }
 .fm-subgraph text { fill: var(--c1); font-size: ${spec.labelFontSize + 2}px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
-.fm-node-shape { fill: color-mix(in oklab, var(--ground) 82%, transparent); stroke: var(--c1); stroke-width: var(--stroke); transition: stroke-width .16s ease; }
-.fm-node[data-kind="decision"] .fm-node-shape { stroke: var(--c2); }
-.fm-node[data-kind="terminal"] .fm-node-shape { stroke: var(--c3); }
-.fm-node-rule { stroke: var(--c1); stroke-width: var(--stroke); }
+.fm-node-shape { fill: color-mix(in oklab, var(--ground) 82%, transparent); stroke: var(--tone); stroke-width: var(--stroke); transition: stroke-width .16s ease; }
+.fm-node-rule { stroke: var(--tone); stroke-width: var(--stroke); }
 .fm-node-label { fill: var(--ink); font-size: ${Math.round(spec.fontSize * 0.92)}px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; }
 .fm-node-icon { display: none; }
 .fm-node-badge { display: none; }

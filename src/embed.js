@@ -101,6 +101,7 @@ export function buildEmbed(input) {
     // browser's own tooltips and the pulse is pre-drawn.
     nativeTitles: true,
     pulses: animated,
+    colorBy: input.colorBy ?? DEFAULTS.colorBy,
   });
 
   const css = scopeCss(

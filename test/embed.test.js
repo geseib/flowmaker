@@ -125,3 +125,10 @@ test('two different diagrams get different wrappers, so they can share a page', 
 test('the same document always produces the same snippet', () => {
   assert.equal(make(), make());
 });
+
+test('the colouring mode is baked in, like every other choice', () => {
+  const byType = make({ colorBy: 'type' });
+  const byLevel = make({ colorBy: 'level' });
+  assert.notEqual(byType, byLevel, 'the mode must change the output');
+  assert.match(byLevel, /data-tone="\d"/, 'each node carries its swatch');
+});

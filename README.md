@@ -11,7 +11,7 @@ no network requests at runtime.
 
 ```bash
 node server.js                 # http://localhost:8321
-node --test 'test/*.test.js'   # 216 tests, no devDependencies
+node --test 'test/*.test.js'   # 246 tests, no devDependencies
 node build.js                  # dist/ — one self-contained file, opens by double-click
 ```
 
@@ -42,6 +42,7 @@ direction: LR            # LR | RL | TD | BT
 density: marquee         # marquee | standard | compact
 loops: auto              # auto | line | wrap
 layout: flow             # flow | tree (tree is an org chart: one box above each)
+colorBy: type            # type | level | group
 ---
 
 ```mermaid
@@ -70,6 +71,12 @@ studio reports any section that matches no node, and any node with no section.
 - **Four-swatch palettes** — `c1` flow, `c2` decision, `c3` accent, `c4` alert.
   Surface and text tones are derived in OKLCH, so body text always clears 7:1
   against its background and node labels always clear 4.5:1.
+- **Colour by step type, level, or group** — the palette chooses the colours;
+  `colorBy` chooses who wears which. `type` colours decisions and terminals
+  apart (the default), `level` gives each rank or tier its own swatch (what an
+  org chart wants), `group` gives each subgraph lane its own. Pin one node with
+  `ESCALATE:::c4`, which beats every mode. Styles ask for `var(--tone)` and
+  stay out of the decision, so the modes cost each style nothing.
 - **Icons** — the Infographic style resolves an inline SVG icon per step from
   the label (`Capture Payment` → money, `Review Contract` → document), falling
   back to the mermaid shape, and sets it in a ring. Force one with

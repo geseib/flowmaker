@@ -34,6 +34,7 @@ export function bootExport() {
     palette: getPalette(data.paletteKey),
     meta: data.meta,
     details: data.details,
+    colorBy: data.colorBy,
   });
 
   let runtimeRef = null;

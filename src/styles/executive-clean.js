@@ -15,10 +15,11 @@ export default {
 .fm-svg { display: block; }
 .fm-subgraph rect { fill: var(--surface-2); stroke: var(--border); stroke-width: var(--stroke); rx: calc(var(--corner) + 6px); }
 .fm-subgraph text { fill: var(--ink-dim); font-size: ${spec.labelFontSize + 3}px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.fm-node-shape { fill: var(--surface); stroke: var(--c1); stroke-width: var(--stroke); transition: filter .18s ease, stroke-width .18s ease; }
-.fm-node[data-kind="decision"] .fm-node-shape { stroke: var(--c2); fill: var(--c2-soft); }
-.fm-node[data-kind="terminal"] .fm-node-shape { stroke: var(--c3); fill: var(--c3-soft); }
-.fm-node-rule { stroke: var(--c1); stroke-width: var(--stroke); }
+.fm-node-shape { fill: var(--surface); stroke: var(--tone); stroke-width: var(--stroke); transition: filter .18s ease, stroke-width .18s ease; }
+/* A plain step keeps a white card; anything singled out gets a tinted one. */
+.fm-node[data-kind="decision"] .fm-node-shape,
+.fm-node[data-kind="terminal"] .fm-node-shape { fill: var(--tone-soft); }
+.fm-node-rule { stroke: var(--tone); stroke-width: var(--stroke); }
 .fm-node-label { fill: var(--ink); font-size: ${spec.fontSize}px; font-weight: 650; }
 .fm-node-icon { display: none; }
 .fm-node-badge { display: none; }

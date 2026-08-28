@@ -113,3 +113,28 @@ test('parsing is deterministic', () => {
   const src = 'flowchart LR\nA[One] -->|go| B{Two}\nB --> A';
   assert.deepEqual(parseMermaid(src), parseMermaid(src));
 });
+
+test('an inline class is read on either side of the label', () => {
+  const bare = parseMermaid('flowchart LR\nA:::c4 --> B');
+  assert.deepEqual(bare.nodes[0].classes, ['c4']);
+
+  // mermaid's own form for a labelled node puts the class after the bracket.
+  const labelled = parseMermaid('flowchart LR\nA[Start]:::c4 --> B[End]');
+  assert.deepEqual(labelled.nodes[0].classes, ['c4']);
+  assert.equal(labelled.nodes[0].label, 'Start');
+  assert.deepEqual(labelled.nodes[1].id, 'B');
+  assert.deepEqual(labelled.edges.map((e) => [e.from, e.to]), [['A', 'B']]);
+});
+
+test('a class after the label does not swallow the connector', () => {
+  const g = parseMermaid('flowchart LR\nA[Start]:::icon-money --> B{Choose?}\nB -->|Yes| C[Done]');
+  assert.deepEqual(g.nodes.map((n) => n.id), ['A', 'B', 'C']);
+  assert.deepEqual(g.nodes[1].shape, 'rhombus');
+  assert.equal(g.edges.length, 2);
+  assert.deepEqual(g.warnings, []);
+});
+
+test('a trailing colon that is not a class is left alone', () => {
+  const g = parseMermaid('flowchart LR\nA[Start] --> B[End]');
+  assert.deepEqual(g.nodes.map((n) => n.classes), [[], []]);
+});

@@ -3,16 +3,8 @@ import { getStyle } from './styles/index.js';
 import { deriveTokens } from './palettes.js';
 import { ICONS, iconFor, showIconsFor } from './icons.js';
 import { esc } from './escape.js';
+import { toneOf, kindOf } from './tone.js';
 
-// Decision-ish and terminal-ish shapes get semantic colouring from the palette.
-const KIND = {
-  rhombus: 'decision',
-  hexagon: 'decision',
-  circle: 'terminal',
-  doublecircle: 'terminal',
-  stadium: 'terminal',
-};
-const kindOf = (shape) => KIND[shape] ?? 'process';
 
 function shapeMarkup(n, spec) {
   const { x, y, w, h } = n;
@@ -120,7 +112,7 @@ function iconMarkup(n, spec, iconName) {
   };
 }
 
-function nodeMarkup(n, spec, details, showIcons, nativeTitles) {
+function nodeMarkup(n, spec, details, showIcons, nativeTitles, tone) {
   const detail = details?.[n.id];
   const iconName = showIcons ? iconFor(n) : null;
   const icon = iconMarkup(n, spec, iconName);
@@ -141,7 +133,7 @@ function nodeMarkup(n, spec, details, showIcons, nativeTitles) {
   const spoken = String(n.label).replace(/<br\s*\/?>/gi, ', ');
   const name = detail?.tooltip ? `${spoken}. ${detail.tooltip}` : spoken;
   return [
-    `<g class="fm-node" data-node-id="${esc(n.id)}" data-kind="${kindOf(n.shape)}"`,
+    `<g class="fm-node" data-node-id="${esc(n.id)}" data-kind="${kindOf(n.shape)}" data-tone="${tone}"`,
     iconName ? ` data-icon="${esc(iconName)}"` : '',
     detail ? ' data-has-detail="true"' : '',
     ` tabindex="0" role="button" aria-label="${esc(name)}">`,
@@ -185,10 +177,20 @@ function edgeMarkup(e, spec) {
     + tags;
 }
 
+// Each node carries a swatch number; this turns it into the colour the styles
+// draw with. Styles ask for var(--tone) and stay out of the decision, so a
+// diagram can be coloured by shape, by tier, or by lane without touching them.
+export const TONE_CSS = `
+.fm-node { --tone: var(--c1); --tone-ink: var(--c1-ink); --tone-soft: var(--c1-soft); }
+.fm-node[data-tone="2"] { --tone: var(--c2); --tone-ink: var(--c2-ink); --tone-soft: var(--c2-soft); }
+.fm-node[data-tone="3"] { --tone: var(--c3); --tone-ink: var(--c3-ink); --tone-soft: var(--c3-soft); }
+.fm-node[data-tone="4"] { --tone: var(--c4); --tone-ink: var(--c4-ink); --tone-soft: var(--c4-soft); }
+`.trim();
+
 export function styleCss(styleKey, tokens, densityKey) {
   const style = getStyle(styleKey);
   const spec = DENSITY[densityKey] ?? DENSITY.standard;
-  return style.css(tokens, spec);
+  return `${style.css(tokens, spec)}\n${TONE_CSS}`;
 }
 
 export function renderSvg(model, opts = {}) {
@@ -216,7 +218,10 @@ export function renderSvg(model, opts = {}) {
 
   const edges = model.edges.map((e) => edgeMarkup(e, spec)).join('');
   const showIcons = opts.showIcons ?? showIconsFor(opts.styleKey);
-  const nodes = model.nodes.map((n) => nodeMarkup(n, spec, details, showIcons, opts.nativeTitles)).join('');
+  const colorBy = opts.colorBy ?? 'type';
+  const nodes = model.nodes
+    .map((n) => nodeMarkup(n, spec, details, showIcons, opts.nativeTitles, toneOf(n, colorBy, model)))
+    .join('');
   const title = opts.meta?.title ? `<title>${esc(opts.meta.title)}</title>` : '';
 
   // The studio's runtime builds the travelling dots in script. A snippet has no

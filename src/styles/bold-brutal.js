@@ -15,13 +15,9 @@ export default {
 .fm-svg { display: block; }
 .fm-subgraph rect { fill: none; stroke: var(--ink); stroke-width: var(--stroke); rx: 0; }
 .fm-subgraph text { fill: var(--ink); font-size: ${spec.labelFontSize + 4}px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
-.fm-node-shape { fill: var(--c1); stroke: var(--ink); stroke-width: var(--stroke); rx: 0; transition: transform .12s ease; }
-.fm-node[data-kind="decision"] .fm-node-shape { fill: var(--c2); }
-.fm-node[data-kind="terminal"] .fm-node-shape { fill: var(--c3); }
-.fm-node-rule { stroke: var(--c1-ink); stroke-width: var(--stroke); }
-.fm-node-label { fill: var(--c1-ink); font-size: ${spec.fontSize}px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-.fm-node[data-kind="decision"] .fm-node-label { fill: var(--c2-ink); }
-.fm-node[data-kind="terminal"] .fm-node-label { fill: var(--c3-ink); }
+.fm-node-shape { fill: var(--tone); stroke: var(--ink); stroke-width: var(--stroke); rx: 0; transition: transform .12s ease; }
+.fm-node-rule { stroke: var(--tone-ink); stroke-width: var(--stroke); }
+.fm-node-label { fill: var(--tone-ink); font-size: ${spec.fontSize}px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .fm-node-icon { display: none; }
 .fm-node-badge { display: none; }
 .fm-node-rail { display: none; }

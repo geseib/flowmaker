@@ -68,3 +68,18 @@ test('explicit overrides beat frontmatter', () => {
 test('resolution is deterministic', () => {
   assert.deepEqual(resolveDocument(sample), resolveDocument(sample));
 });
+
+test('the colouring mode resolves, and an unknown one warns rather than breaking', () => {
+  const md = ['---', 'title: T', 'colorBy: level', '---', '', '```mermaid', 'flowchart LR', 'A --> B', '```'].join('\n');
+  assert.equal(resolveDocument(md).meta.colorBy, 'level');
+
+  const bad = md.replace('colorBy: level', 'colorBy: rainbow');
+  const r = resolveDocument(bad);
+  assert.equal(r.meta.colorBy, 'type', 'it falls back to the default');
+  assert.ok(r.warnings.some((w) => /colorBy/i.test(w.message ?? '') || /colorBy/i.test(w.code ?? '')));
+});
+
+test('a control overrides what the file asked for', () => {
+  const md = ['---', 'title: T', 'colorBy: level', '---', '', '```mermaid', 'flowchart LR', 'A --> B', '```'].join('\n');
+  assert.equal(resolveDocument(md, { colorBy: 'group' }).meta.colorBy, 'group');
+});

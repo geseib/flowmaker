@@ -6,6 +6,7 @@ palette: slate
 direction: TD
 density: standard
 layout: tree
+colorBy: level
 ---
 
 ```mermaid

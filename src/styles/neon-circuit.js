@@ -18,20 +18,18 @@ export default {
 .fm-subgraph rect { fill: color-mix(in oklab, var(--c1) 6%, transparent); stroke: color-mix(in oklab, var(--c1) 45%, transparent); stroke-width: var(--stroke); rx: calc(var(--corner) + 8px); }
 .fm-subgraph text { fill: var(--c1); font-size: ${spec.labelFontSize + 3}px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
 .fm-node-shape {
-  fill: color-mix(in oklab, var(--c1) 12%, var(--surface));
-  stroke: var(--c1); stroke-width: var(--stroke);
-  filter: drop-shadow(0 0 calc(var(--stroke) * 2.4) color-mix(in oklab, var(--c1) 70%, transparent));
+  fill: color-mix(in oklab, var(--tone) 12%, var(--surface));
+  stroke: var(--tone); stroke-width: var(--stroke);
+  filter: drop-shadow(0 0 calc(var(--stroke) * 2.4) color-mix(in oklab, var(--tone) 70%, transparent));
   transition: filter .2s ease, stroke-width .2s ease;
 }
-.fm-node[data-kind="decision"] .fm-node-shape { stroke: var(--c2); fill: color-mix(in oklab, var(--c2) 12%, var(--surface)); filter: drop-shadow(0 0 calc(var(--stroke) * 2.4) color-mix(in oklab, var(--c2) 70%, transparent)); }
-.fm-node[data-kind="terminal"] .fm-node-shape { stroke: var(--c3); fill: color-mix(in oklab, var(--c3) 14%, var(--surface)); filter: drop-shadow(0 0 calc(var(--stroke) * 2.8) color-mix(in oklab, var(--c3) 80%, transparent)); }
-.fm-node-rule { stroke: var(--c1); stroke-width: var(--stroke); }
+.fm-node-rule { stroke: var(--tone); stroke-width: var(--stroke); }
 .fm-node-label { fill: var(--ink); font-size: ${spec.fontSize}px; font-weight: 700; letter-spacing: .02em; }
 .fm-node-icon { display: none; }
 .fm-node-badge { display: none; }
 .fm-node-rail { display: none; }
 .fm-node[data-has-detail="true"] { cursor: pointer; }
-.fm-node:hover .fm-node-shape, .fm-node:focus-visible .fm-node-shape { stroke-width: calc(var(--stroke) * 1.7); filter: drop-shadow(0 0 calc(var(--stroke) * 5) var(--c1)); }
+.fm-node:hover .fm-node-shape, .fm-node:focus-visible .fm-node-shape { stroke-width: calc(var(--stroke) * 1.7); filter: drop-shadow(0 0 calc(var(--stroke) * 5) var(--tone)); }
 .fm-node:focus { outline: none; }
 .fm-node:focus-visible { outline: none; }
 .fm-node[data-dimmed="true"] { opacity: .55; }

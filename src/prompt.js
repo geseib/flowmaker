@@ -1,4 +1,4 @@
-import { STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, DEFAULTS } from './constants.js';
+import { STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, COLOR_BY_KEYS, DEFAULTS } from './constants.js';
 import { PALETTES } from './palettes.js';
 import { ICON_NAMES } from './icons.js';
 
@@ -18,6 +18,11 @@ clicking it opens a detail card.
 Do not write the file yet. Ask me about the following, a few questions at a
 time, and push back when an answer is vague. If I clearly do not know
 something, say so in the file rather than inventing it.
+
+Ask first whether this is a **process** (work moving through steps) or an
+**org chart** (who reports to whom). They are different documents: a process
+uses questions 1-8, an org chart uses the questions under "Org charts". If I
+describe a process that happens to have owners, it is still a process.
 
 1. What process is this, and who reads the diagram? A trade-show screen, a
    team reference, and an onboarding doc want different levels of detail.
@@ -48,6 +53,8 @@ palette: ${DEFAULTS.palette}
 direction: ${DEFAULTS.direction}
 density: ${DEFAULTS.density}
 loops: ${DEFAULTS.loops}
+layout: ${DEFAULTS.layout}
+colorBy: ${DEFAULTS.colorBy}
 ---
 
 \`\`\`\`mermaid
@@ -82,8 +89,10 @@ prompt. In the real file it is a normal three-backtick \`mermaid\` block.)
   - \`direction\`: ${list(DIRECTION_KEYS)} — \`LR\` reads best for a long process
   - \`density\`: ${list(DENSITY_KEYS)} — \`marquee\` is for a screen read at a distance
   - \`loops\`: ${list(LOOP_KEYS)} — \`auto\` draws a short loop as a line and a long
-  - \`layout\`: ${list(LAYOUT_KEYS)} — use \`tree\` only for a reporting hierarchy (an org chart), where every box has exactly one box above it; pair it with \`direction: TD\`
     one as a pair of lettered connectors
+  - \`layout\`: ${list(LAYOUT_KEYS)} — \`flow\` for a process, \`tree\` for a
+    reporting hierarchy. See "Org charts" below
+  - \`colorBy\`: ${list(COLOR_BY_KEYS)} — see "Colour" below
 - **Exactly one** fenced \`mermaid\` block, containing a \`flowchart\`. Keep it
   plain and valid so the same file still renders on GitHub and in VS Code. Put
   no FlowMaker-specific syntax inside it.
@@ -100,6 +109,59 @@ prompt. In the real file it is a normal three-backtick \`mermaid\` block.)
   \`{Diamond}\` for decisions, \`[Rectangle]\` for steps, \`[(Cylinder)]\` for data
   stores.
 - Group steps into phases with \`subgraph <id> [Label] ... end\`.
+
+## Org charts
+
+Set \`layout: tree\` and \`direction: TD\` and the diagram becomes a reporting
+hierarchy: each box hangs beneath the one it reports to, tiers line up, and
+lines run through a shared bus rather than wandering.
+
+The one hard rule: **every box has exactly one box above it.** A box reporting
+to two people, a dotted second line, or any cycle is not a hierarchy — the tool
+will say which box broke it and fall back to the process layout. Put a matrix
+relationship in the box's detail card as prose instead of drawing it.
+
+Interview me for these instead of the process questions:
+
+1. Who is at the top, and is there more than one top-level box?
+2. For each person or group: who do they report to, and who reports to them?
+3. What does each group own — the thing it is accountable for, not its job title.
+4. Is a box a person, a team, or a function? Say which, and stay consistent.
+5. How many levels deep should this go? Stopping a level early usually reads better.
+6. Anything deliberately left out: matrix lines, vacancies, contractors.
+
+Use \`<br/>\` to put a name over a role, and keep IDs meaningful:
+
+\`\`\`\`mermaid
+flowchart TD
+  CEO["Dana Reyes<br/>Chief Executive"] --> CTO["Sam Okafor<br/>Chief Technology Officer"]
+  CEO --> COO["Priya Raman<br/>Chief Operating Officer"]
+  CTO --> PLATFORM["Alex Chen<br/>Platform Engineering"]
+\`\`\`\`
+
+Every box still gets its own \`## <ID> — <Name>, <Role>\` section, with the
+blockquote as the hover summary. Good detail-card content for a box is what it
+owns, its span of control, its escalation path, and what it is measured on —
+not a biography. Plain \`[Rectangle]\` boxes throughout; a hierarchy has no
+decisions or terminal states. \`colorBy: level\` gives each tier its own colour,
+which is usually what an org chart wants.
+
+## Colour
+
+A palette is four swatches. \`colorBy\` decides which nodes wear which:
+
+- \`type\` (the default) — steps, decisions, and start/end states each get their
+  own colour. Best for a process.
+- \`level\` — each rank or tier gets its own colour, cycling every four. Best for
+  an org chart, and good for a staged process.
+- \`group\` — each \`subgraph\` lane gets its own colour. Best when the phases
+  matter more than the step types.
+
+To pin one node, append \`:::c1\`, \`:::c2\`, \`:::c3\`, or \`:::c4\` to it, as in
+\`ESCALATE[Escalate to On-Call]:::c4\`. An explicit swatch beats every mode, so
+use it sparingly — for the one box that has to stand out. \`c4\` is the alert
+colour and is otherwise unused by nodes, which makes it the right choice for a
+failure or escalation path.
 
 ## Icons
 

@@ -55,14 +55,21 @@ function readNode(line, i) {
   const id = line.slice(i, j);
   if (id === '') return null;
 
-  // Optional inline class: A:::className
-  let classes = [];
-  if (line.startsWith(':::', j)) {
-    let k = j + 3;
+  // An inline class can sit either side of the label: mermaid writes a bare
+  // node as A:::name and a labelled one as A[Start]:::name.
+  const readClass = (at) => {
+    if (!line.startsWith(':::', at)) return null;
+    let k = at + 3;
     const start = k;
     while (k < line.length && /[A-Za-z0-9_-]/.test(line[k])) k += 1;
-    classes = [line.slice(start, k)];
-    j = k;
+    return k === start ? null : { name: line.slice(start, k), next: k };
+  };
+
+  let classes = [];
+  const before = readClass(j);
+  if (before) {
+    classes = [before.name];
+    j = before.next;
   }
 
   // Find where the label ends. Two things make this more than an indexOf:
@@ -92,12 +99,14 @@ function readNode(line, i) {
   }
 
   if (best) {
+    const closed = best.end + best.close.length;
+    const after = readClass(closed);
     return {
       id,
-      classes,
+      classes: after ? [...classes, after.name] : classes,
       shape: best.shape,
       label: unquote(line.slice(j + best.open.length, best.end)),
-      next: best.end + best.close.length,
+      next: after ? after.next : closed,
       labelled: true,
     };
   }

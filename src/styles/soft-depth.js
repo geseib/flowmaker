@@ -20,8 +20,9 @@ export default {
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / .12)) drop-shadow(0 12px 28px rgb(0 0 0 / .12));
   transition: filter .22s ease;
 }
-.fm-node[data-kind="decision"] .fm-node-shape { fill: var(--c2-soft); }
-.fm-node[data-kind="terminal"] .fm-node-shape { fill: var(--c3-soft); }
+.fm-node[data-tone="2"] .fm-node-shape,
+.fm-node[data-tone="3"] .fm-node-shape,
+.fm-node[data-tone="4"] .fm-node-shape { fill: var(--tone-soft); }
 .fm-node-rule { stroke: var(--border); stroke-width: var(--stroke); }
 .fm-node-label { fill: var(--ink); font-size: ${spec.fontSize}px; font-weight: 600; letter-spacing: -.005em; }
 .fm-node-icon { display: none; }

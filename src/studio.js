@@ -1,4 +1,4 @@
-import { DENSITY, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, SPEEDS, DEFAULT_SPEED } from './constants.js';
+import { DENSITY, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, LAYOUT_KEYS, COLOR_BY_KEYS, SPEEDS, DEFAULT_SPEED } from './constants.js';
 import { PALETTES, getPalette, deriveTokens } from './palettes.js';
 import { STYLES, getStyle } from './styles/index.js';
 import { renderSvg, styleCss } from './render.js';
@@ -15,6 +15,8 @@ import { AUTHORING_PROMPT } from './prompt.js';
 import { replaceMermaidBlock } from './parse.js';
 
 const STORE_KEY = 'flowmaker.prefs.v1';
+// What each colouring mode keys off, said plainly rather than as its key.
+const COLOR_BY_LABELS = { type: 'Step type', level: 'Level', group: 'Group' };
 // How long the walkthrough waits after someone scrolls the canvas by hand.
 const WALK_SCROLL_HOLD_MS = 2500;
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
@@ -115,6 +117,7 @@ const STUDIO_HTML = `
     <aside class="fm-rail">
       <h2>Style</h2><div id="fm-style-list" class="fm-style-list"></div>
       <h2>Palette</h2><div id="fm-palette-list" class="fm-palette-list"></div>
+      <label title="Which nodes wear which of the palette's four colours">Colour by <select id="fm-colorby"></select></label>
       <h2>Layout</h2>
       <label title="Flow arranges the steps in layers; Tree hangs a hierarchy, for an org chart">Arrangement <select id="fm-layout"></select></label>
       <label>Density <select id="fm-density"></select></label>
@@ -242,6 +245,8 @@ export function mountStudio(root) {
     .map((k) => `<option value="${k}">${k[0].toUpperCase()}${k.slice(1)}</option>`).join('');
   el('#fm-loops').innerHTML = LOOP_KEYS
     .map((k) => `<option value="${k}">${k[0].toUpperCase()}${k.slice(1)}</option>`).join('');
+  el('#fm-colorby').innerHTML = COLOR_BY_KEYS
+    .map((k) => `<option value="${k}">${COLOR_BY_LABELS[k]}</option>`).join('');
 
   function setSpeed(value) {
     state.speed = SPEEDS.includes(value) ? value : DEFAULT_SPEED;
@@ -274,6 +279,7 @@ export function mountStudio(root) {
       direction: r.meta.direction,
       loops: r.meta.loops,
       layout: r.meta.layout,
+      colorBy: r.meta.colorBy,
       animationMode: state.animationMode,
       autoScroll: state.autoScroll,
       speed: state.speed,
@@ -292,6 +298,7 @@ export function mountStudio(root) {
       styleKey: r.meta.style,
       paletteKey: r.meta.palette,
       density: r.meta.density,
+      colorBy: r.meta.colorBy,
       animationMode: state.animationMode,
     });
   }
@@ -322,6 +329,7 @@ export function mountStudio(root) {
       palette,
       meta: resolved.meta,
       details: resolved.details,
+      colorBy: resolved.meta.colorBy,
     });
     stage.innerHTML = svg;
 
@@ -370,6 +378,7 @@ export function mountStudio(root) {
     el('#fm-direction').value = resolved.meta.direction;
     el('#fm-loops').value = resolved.meta.loops;
     el('#fm-layout').value = resolved.meta.layout;
+    el('#fm-colorby').value = resolved.meta.colorBy;
     el('#fm-title').textContent = resolved.meta.title;
     el('#fm-present-title').textContent = resolved.meta.title;
     el('#fm-subtitle').textContent = resolved.meta.subtitle;
@@ -642,7 +651,7 @@ export function mountStudio(root) {
   });
 
   for (const [id, key] of [['fm-density', 'density'], ['fm-direction', 'direction'],
-    ['fm-loops', 'loops'], ['fm-layout', 'layout']]) {
+    ['fm-loops', 'loops'], ['fm-layout', 'layout'], ['fm-colorby', 'colorBy']]) {
     el(`#${id}`).addEventListener('change', (ev) => {
       state.overrides[key] = ev.target.value;
       render();

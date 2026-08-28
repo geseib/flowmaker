@@ -126,3 +126,50 @@ test('style css uses the palette tokens and reaches no network', () => {
 test('rendering is deterministic', () => {
   assert.equal(renderSvg(model, opts), renderSvg(model, opts));
 });
+
+// --- which swatch a node wears ---------------------------------------------
+
+const toned = (src, opts = {}) => renderSvg(
+  layout(parseMermaid(src), { layout: opts.layout ?? 'flow' }),
+  { styleKey: 'executive-clean', palette: getPalette('harbor'), meta: {}, ...opts },
+);
+const tones = (svg) => [...svg.matchAll(/data-node-id="([^"]+)"[^>]*data-tone="(\d)"/g)]
+  .map((m) => [m[1], Number(m[2])]);
+
+test('every node declares the swatch it wears', () => {
+  const svg = toned('flowchart LR\nA[Start] --> B{Choose?}\nB --> C([Done])');
+  assert.deepEqual(tones(svg), [['A', 1], ['B', 2], ['C', 3]]);
+});
+
+test('colouring by level gives each rank its own swatch', () => {
+  const svg = toned('flowchart TD\nA --> B\nB --> C\nC --> D\nD --> E', { colorBy: 'level' });
+  assert.deepEqual(tones(svg).map(([, t]) => t), [1, 2, 3, 4, 1]);
+});
+
+test('colouring by group gives each lane its own swatch', () => {
+  const src = [
+    'flowchart LR',
+    'subgraph ONE[Design]', 'A[Sketch]', 'end',
+    'subgraph TWO[Build]', 'B[Ship]', 'end',
+    'A --> B',
+  ].join('\n');
+  assert.deepEqual(tones(toned(src, { colorBy: 'group' })), [['A', 1], ['B', 2]]);
+});
+
+test('an author who writes :::c4 gets c4 whatever the mode', () => {
+  const src = 'flowchart LR\nA[Start]:::c4 --> B{Choose?}';
+  for (const colorBy of ['type', 'level', 'group']) {
+    const found = tones(toned(src, { colorBy }));
+    assert.deepEqual(found[0], ['A', 4], `mode ${colorBy} ignored the explicit swatch`);
+  }
+});
+
+test('the default mode is the behaviour the diagrams already had', () => {
+  const src = 'flowchart LR\nA[Start] --> B{Choose?}';
+  assert.equal(toned(src), toned(src, { colorBy: 'type' }));
+});
+
+test('the swatch is a number the palette has', () => {
+  const svg = toned('flowchart TD\nA --> B\nB --> C\nC --> D\nD --> E\nE --> F', { colorBy: 'level' });
+  for (const [, t] of tones(svg)) assert.ok(t >= 1 && t <= 4);
+});

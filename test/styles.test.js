@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { STYLES, getStyle } from '../src/styles/index.js';
 import { STYLE_KEYS, DENSITY, DENSITY_KEYS } from '../src/constants.js';
+import { styleCss } from '../src/render.js';
 import { PALETTES, deriveTokens } from '../src/palettes.js';
 
 // The renderer emits identical markup for every style, so every style has to
@@ -91,12 +92,12 @@ test('only Accent Rail shows the accent rail', () => {
 test('Infographic is outlined, not filled: cards take the surface colour', () => {
   const css = cssFor(getStyle('infographic'));
   assert.match(css, /\.fm-node-shape\s*\{[^}]*fill:\s*var\(--surface\)/, 'cards must be outlined');
-  assert.match(css, /\.fm-node-shape\s*\{[^}]*stroke:\s*var\(--c1\)/, 'the colour lives in the border');
+  assert.match(css, /\.fm-node-shape\s*\{[^}]*stroke:\s*var\(--tone\)/, 'the colour lives in the border');
 });
 
 test('Accent Rail colours the rail rather than the whole card', () => {
   const css = cssFor(getStyle('accent-rail'));
-  assert.match(css, /\.fm-node-rail\s*\{[^}]*fill:\s*var\(--c1\)/);
+  assert.match(css, /\.fm-node-rail\s*\{[^}]*fill:\s*var\(--tone\)/);
   assert.match(css, /\.fm-node-shape\s*\{[^}]*fill:\s*var\(--surface\)/);
 });
 
@@ -113,5 +114,31 @@ test('an unknown style key falls back rather than throwing', () => {
 test('style css generation is deterministic', () => {
   for (const s of STYLES) {
     assert.equal(cssFor(s, DENSITY.standard, PALETTES[2]), cssFor(s, DENSITY.standard, PALETTES[2]));
+  }
+});
+
+// --- the swatch a node wears ------------------------------------------------
+
+test('every style takes its node colour from the tone, not from a fixed swatch', () => {
+  for (const s of STYLES) {
+    const css = cssFor(s);
+    // A node's own colour must be indirect, so the colouring mode can redirect
+    // it. Edges, wrap tags, and the alert colour are not per-node and stay put.
+    const nodeRules = css.split('\n').filter((line) => /^\.fm-node[^-]/.test(line) || /^\.fm-node-(shape|rail|label|icon|badge|rule)/.test(line));
+    for (const line of nodeRules) {
+      if (line.includes('data-active') || line.includes(':focus') || line.includes(':hover')) continue;
+      assert.equal(/var\(--c[123](-ink|-soft)?\)/.test(line), false,
+        `${s.key} pins a node to a fixed swatch: ${line.trim()}`);
+    }
+  }
+});
+
+test('the tone rules cover all four swatches, once, for every style', () => {
+  for (const s of STYLES) {
+    const css = styleCss(s.key, deriveTokens(PALETTES[0], { dark: s.dark }), 'standard');
+    for (const n of [2, 3, 4]) {
+      assert.ok(css.includes(`.fm-node[data-tone="${n}"]`), `${s.key} has no rule for tone ${n}`);
+    }
+    assert.match(css, /\.fm-node \{[^}]*--tone:\s*var\(--c1\)/, `${s.key} has no default tone`);
   }
 });

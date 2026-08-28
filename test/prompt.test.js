@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAuthoringPrompt, AUTHORING_PROMPT } from '../src/prompt.js';
-import { STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, DEFAULTS } from '../src/constants.js';
+import { STYLE_KEYS, DENSITY_KEYS, DIRECTION_KEYS, LOOP_KEYS, COLOR_BY_KEYS, DEFAULTS } from '../src/constants.js';
 import { PALETTES } from '../src/palettes.js';
 import { ICON_NAMES } from '../src/icons.js';
 import { parseDocument } from '../src/parse.js';
@@ -85,4 +85,36 @@ test('the worked example in the prompt parses as a valid document', () => {
 test('the prompt is generated fresh and is deterministic', () => {
   assert.equal(buildAuthoringPrompt(), buildAuthoringPrompt());
   assert.equal(buildAuthoringPrompt(), AUTHORING_PROMPT);
+});
+
+test('it explains the org chart layout and its one hard rule', () => {
+  const p = buildAuthoringPrompt();
+  assert.match(p, /layout: tree|`tree`/, 'the tree layout must be named');
+  assert.match(p, /exactly one box above it/, 'the hierarchy rule must be stated');
+  assert.match(p, /<br\/>/, 'the name-over-role break must be shown');
+  assert.match(p, /direction: TD/);
+  assert.ok(p.includes('Org charts'), 'org charts need their own section');
+});
+
+test('it asks a different set of questions for a hierarchy', () => {
+  const p = buildAuthoringPrompt();
+  const section = p.slice(p.indexOf('## Org charts'), p.indexOf('## Colour'));
+  assert.match(section, /reports to/i);
+  assert.match(section, /own/i);
+  assert.ok(section.includes('?'), 'it must actually ask something');
+});
+
+test('it explains how to choose which nodes wear which colour', () => {
+  const p = buildAuthoringPrompt();
+  for (const mode of COLOR_BY_KEYS) {
+    assert.ok(p.includes(`\`${mode}\``), `colouring mode ${mode} is undocumented`);
+  }
+  assert.match(p, /:::c4/, 'the per-node override must be shown');
+});
+
+test('the frontmatter example carries every key the tool reads', () => {
+  const p = buildAuthoringPrompt();
+  for (const key of ['style', 'palette', 'direction', 'density', 'loops', 'layout', 'colorBy']) {
+    assert.match(p, new RegExp(`^${key}: `, 'm'), `${key} is missing from the example`);
+  }
 });
