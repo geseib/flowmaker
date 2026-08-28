@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toneOf, kindOf, tagsOf, tagOrder, TONE_COUNT } from '../src/tone.js';
+import { toneOf, kindOf, tagsOf, tagOrder, TONE_COUNT, NEUTRAL_TONE } from '../src/tone.js';
 import { COLOR_BY_KEYS } from '../src/constants.js';
 
 const node = (over = {}) => ({ id: 'A', shape: 'rect', rank: 0, subgraph: null, classes: [], ...over });
@@ -34,15 +34,16 @@ test('by group, each lane wears its own swatch', () => {
   assert.equal(toneOf(node({ subgraph: 'SHIP' }), 'group', model), 3);
 });
 
-test('a node in no lane keeps the flow colour rather than joining one', () => {
+test('a node in no lane is neutral, not the same colour as the first lane', () => {
   const model = { subgraphs: [{ id: 'DESIGN' }] };
-  assert.equal(toneOf(node({ subgraph: null }), 'group', model), 1);
-  assert.equal(toneOf(node({ subgraph: 'GONE' }), 'group', model), 1);
+  assert.equal(toneOf(node({ subgraph: 'DESIGN' }), 'group', model), 1);
+  assert.equal(toneOf(node({ subgraph: null }), 'group', model), NEUTRAL_TONE);
+  assert.equal(toneOf(node({ subgraph: 'GONE' }), 'group', model), NEUTRAL_TONE);
 });
 
-test('grouping with no lanes at all is still valid, and uniform', () => {
-  assert.equal(toneOf(node(), 'group', { subgraphs: [] }), 1);
-  assert.equal(toneOf(node(), 'group', null), 1);
+test('grouping with no lanes at all is uniform, and uniformly neutral', () => {
+  assert.equal(toneOf(node(), 'group', { subgraphs: [] }), NEUTRAL_TONE);
+  assert.equal(toneOf(node(), 'group', null), NEUTRAL_TONE);
 });
 
 test('an explicit :::c4 beats every mode', () => {
@@ -56,14 +57,26 @@ test('an unrelated class is not mistaken for a colour', () => {
   assert.equal(toneOf(node({ classes: ['cc1'], shape: 'rect' })), 1);
 });
 
-test('every mode returns a swatch the palette actually has', () => {
-  const model = { subgraphs: [{ id: 'A' }, { id: 'B' }, { id: 'C' }, { id: 'D' }, { id: 'E' }] };
+test('every mode returns a swatch the palette actually has, or the neutral', () => {
+  const model = {
+    nodes: [],
+    subgraphs: [{ id: 'A' }, { id: 'B' }, { id: 'C' }, { id: 'D' }, { id: 'E' }],
+  };
   for (const mode of COLOR_BY_KEYS) {
     for (let rank = 0; rank < 9; rank += 1) {
       for (const sg of [null, 'A', 'C', 'E']) {
         const t = toneOf(node({ rank, subgraph: sg }), mode, model);
-        assert.ok(Number.isInteger(t) && t >= 1 && t <= TONE_COUNT, `${mode} produced ${t}`);
+        assert.ok(Number.isInteger(t) && t >= NEUTRAL_TONE && t <= TONE_COUNT, `${mode} produced ${t}`);
       }
+    }
+  }
+});
+
+test('the modes that name every node never produce the neutral', () => {
+  const m = { nodes: [], subgraphs: [] };
+  for (const mode of ['type', 'level']) {
+    for (let rank = 0; rank < 6; rank += 1) {
+      assert.notEqual(toneOf(node({ rank }), mode, m), NEUTRAL_TONE, `${mode} left a node uncoloured`);
     }
   }
 });
@@ -103,9 +116,10 @@ test('tags are coloured in the order they first appear, not alphabetically', () 
   assert.equal(toneOf(m.nodes[1], 'tag', m), 2);
 });
 
-test('an untagged node keeps the flow colour rather than joining a category', () => {
+test('an untagged node is neutral, not the colour of the first category', () => {
   const m = withNodes(tagged('A', 'vp'), tagged('B', null));
-  assert.equal(toneOf(m.nodes[1], 'tag', m), 1);
+  assert.equal(toneOf(m.nodes[0], 'tag', m), 1, 'the first category takes the first swatch');
+  assert.equal(toneOf(m.nodes[1], 'tag', m), NEUTRAL_TONE, 'and nothing else may share it');
 });
 
 test('more categories than swatches start the swatches over', () => {
@@ -132,5 +146,5 @@ test('the tag order is stable, and reads as the legend would', () => {
 test('a diagram with no tags at all is uniform rather than broken', () => {
   const m = withNodes(node({ id: 'A' }), node({ id: 'B' }));
   assert.deepEqual(tagOrder(m), []);
-  assert.deepEqual(m.nodes.map((n) => toneOf(n, 'tag', m)), [1, 1]);
+  assert.deepEqual(m.nodes.map((n) => toneOf(n, 'tag', m)), [NEUTRAL_TONE, NEUTRAL_TONE]);
 });

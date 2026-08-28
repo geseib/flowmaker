@@ -64,8 +64,8 @@ test('it declares a real size, so it does not open at zero', () => {
   const root = /<svg [^>]*>/.exec(svg)[0];
   const w = Number(/ width="([\d.]+)"/.exec(root)[1]);
   const h = Number(/ height="([\d.]+)"/.exec(root)[1]);
-  assert.ok(w >= doc.model.bounds.w, 'at least as wide as the diagram');
-  assert.ok(h > doc.model.bounds.h, 'taller than the diagram, to seat the caption');
+  assert.equal(w, doc.model.bounds.w, 'exactly the diagram, with no border of its own');
+  assert.equal(h, doc.model.bounds.h);
   assert.match(svg, new RegExp(`viewBox="0 0 ${w} ${h}"`));
 });
 
@@ -96,18 +96,20 @@ test('the ground is painted, so it is not transparent over a dark page', () => {
   assert.match(make(), /<rect class="fm-svg-ground"[^>]*fill="var\(--ground\)"/);
 });
 
-test('the caption names the diagram', () => {
+test('the title is the accessible name, and is not drawn on the diagram', () => {
   const svg = make();
-  assert.ok(svg.includes(doc.meta.title));
-  assert.ok(svg.includes(doc.meta.subtitle));
-  assert.match(svg, /<title>/, 'and it has an accessible name');
+  // The file is placed in a document that provides its own heading, so drawing
+  // one here would be a second, competing title.
+  assert.match(svg, /<title>/, 'it still has an accessible name');
+  assert.match(svg, /aria-label="Order Processing"/);
+  assert.equal(svg.includes('fm-caption'), false, 'nothing is drawn for it');
+  assert.equal(svg.includes(doc.meta.subtitle), false, 'and no subtitle either');
 });
 
-test('a diagram with no title is saved without a caption or its gap', () => {
-  const bare = make({ meta: { title: '', subtitle: '' } });
-  const h = Number(/ height="([\d.]+)"/.exec(/<svg [^>]*>/.exec(bare)[0])[1]);
-  assert.equal(h, doc.model.bounds.h, 'no caption, no header space');
-  assert.equal(bare.includes('fm-caption-title'), false);
+test('the canvas is the same size whatever the title says', () => {
+  const dims = (svg) => /<svg [^>]*?(width="[\d.]+" height="[\d.]+" viewBox="[^"]*")/.exec(svg)[1];
+  assert.equal(dims(make()), dims(make({ meta: { title: 'A much longer title', subtitle: 'and a subtitle' } })));
+  assert.equal(dims(make()), dims(make({ meta: {} })));
 });
 
 test('step summaries survive as the viewer\'s own tooltips', () => {

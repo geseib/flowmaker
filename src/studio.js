@@ -357,6 +357,9 @@ export function mountStudio(root) {
       speed: state.speed,
       scrollTo: (node) => state.canvas.scrollToNode(node),
       // Hovering a step, focusing it, or opening its card freezes the crawl too.
+      // The arrows move the diagram, and the walkthrough's highlight rides along
+      // with them, the same way it follows a drag.
+      onNudge: (key) => state.canvas?.nudge(key) ?? false,
       onPause: () => state.canvas?.pauseAutoScroll(),
       onResume: () => state.canvas?.resumeAutoScroll(),
     });

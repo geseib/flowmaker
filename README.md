@@ -76,13 +76,19 @@ studio reports any section that matches no node, and any node with no section.
   terminals apart (the default), `level` gives each rank or tier its own swatch
   (what an org chart wants), `group` gives each subgraph lane its own, and `tag`
   gives each category you name one — write `:::vp`, `:::contractor`, and every
-  node carrying that tag matches, in the order the tags first appear. Pin a
-  single node with `ESCALATE:::c4`, which beats every mode. Styles ask for
-  `var(--tone)` and stay out of the decision, so the modes cost each style
-  nothing.
+  node carrying that tag matches, in the order the tags first appear. A node in
+  no category at all is drawn muted rather than borrowing the first category's
+  colour. Pin a single node with `ESCALATE:::c4`, which beats every mode. Styles
+  ask for `var(--tone)` and stay out of the decision, so the modes cost each
+  style nothing.
 - **Save as SVG** — one vector file with the palette, the style, and the pulse
   inlined, named after the diagram (`Order_Processing.svg`). No script, no
-  network, no embedded fonts.
+  network, no embedded fonts, and no drawn title: the file is the diagram, for a
+  document that supplies its own heading.
+- **The arrow keys move the diagram** — left and right pan a horizontal flow,
+  up and down a vertical one, and during a pulse or a walkthrough the highlight
+  comes along, exactly as it does when you drag. A focused step keeps its
+  step-to-step navigation, and a text field keeps its own arrows.
 - **A detail card during the walkthrough** — as each step lights up, the detail
   a click would open is docked clear of it: a wide band below a left-to-right
   flow, a column beside a top-down one, flipping to the other side when the
@@ -149,7 +155,9 @@ studio reports any section that matches no node, and any node with no section.
 (Interviewing and Selection), compliance gates with resubmission cycles
 (Customer Onboarding and KYC), and the heaviest loop-back case
 (Incident Response), plus a twelve-box reporting hierarchy
-(Engineering Organisation) for the tree layout.
+(Engineering Organisation) for the tree layout, five levels deep and tagged by
+`vp`, `employee`, `contractor`, and `open` so the categories colour across the
+tiers rather than with them.
 
 ## Layout
 

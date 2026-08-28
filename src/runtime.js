@@ -1,5 +1,6 @@
 import { mdToHtml } from './md.js';
 import { createAnimator, ANIMATE_CSS } from './animate.js';
+import { shouldNudge } from './canvas.js';
 
 export { ANIMATE_CSS };
 
@@ -514,8 +515,25 @@ export function attachRuntime(root, config = {}) {
     if (e.key === 'Tab') {
       ui.keyboardNav = true;
       ui.suppressFocusTooltip = false;
+      return;
     }
+    // With no step focused, the arrows move the diagram rather than the
+    // selection: the reading most people expect from a picture that scrolls.
+    // A focused step keeps the step-to-step navigation a keyboard user needs.
+    if (!shouldNudge(e.key, {
+      typing: isTyping(doc.activeElement),
+      nodeFocused: Boolean(doc.activeElement?.closest?.('.fm-node')),
+      modalOpen: ui.modalOpen,
+      modifier: e.metaKey || e.ctrlKey || e.altKey,
+    })) return;
+    if (config.onNudge?.(e.key)) e.preventDefault();
   };
+
+  function isTyping(el) {
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable === true;
+  }
 
   const onClick = (e) => {
     const n = e.target.closest?.('.fm-node');

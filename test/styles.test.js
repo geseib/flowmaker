@@ -136,7 +136,7 @@ test('every style takes its node colour from the tone, not from a fixed swatch',
 test('the tone rules cover all four swatches, once, for every style', () => {
   for (const s of STYLES) {
     const css = styleCss(s.key, deriveTokens(PALETTES[0], { dark: s.dark }), 'standard');
-    for (const n of [2, 3, 4]) {
+    for (const n of [0, 2, 3, 4]) {
       assert.ok(css.includes(`.fm-node[data-tone="${n}"]`), `${s.key} has no rule for tone ${n}`);
     }
     assert.match(css, /\.fm-node \{[^}]*--tone:\s*var\(--c1\)/, `${s.key} has no default tone`);

@@ -161,8 +161,10 @@ A palette is four swatches. \`colorBy\` decides which nodes wear which:
   \`:::contractor\`, or \`:::manual\`, \`:::automated\`. Every node carrying the
   same tag gets the same colour, in the order the tags first appear. Keep it to
   four categories, since a palette has four colours, and ask me what the
-  categories are rather than inventing them. An untagged node stays the flow
-  colour.
+  categories are rather than inventing them. A node with no tag is drawn in a
+  muted grey instead of a palette colour, which is useful on purpose: tag the
+  boxes the categories apply to and leave the structural ones untagged, and the
+  categories carry the colour while the scaffolding recedes.
 
 To pin one node, append \`:::c1\`, \`:::c2\`, \`:::c3\`, or \`:::c4\` to it, as in
 \`ESCALATE[Escalate to On-Call]:::c4\`. An explicit swatch beats every mode, so

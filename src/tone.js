@@ -19,6 +19,12 @@ export const kindOf = (shape) => KIND[shape] ?? 'process';
 
 export const TONE_COUNT = 4;
 
+// A node that belongs to no category at all. Giving it a swatch would put it in
+// the same colour as whichever category happened to be named first, which reads
+// as a claim the diagram is not making. It takes a muted treatment instead, so
+// the categories carry the colour and the structure recedes behind them.
+export const NEUTRAL_TONE = 0;
+
 const cycle = (i) => ((i % TONE_COUNT) + TONE_COUNT) % TONE_COUNT + 1;
 
 // A class is a tag unless it is one of the names the tool has already claimed.
@@ -62,14 +68,14 @@ export function toneOf(node, mode = 'type', model = null) {
     // An untagged node keeps the flow colour rather than borrowing a category
     // it was never put in.
     const i = tag ? order.indexOf(tag) : -1;
-    return i === -1 ? 1 : cycle(i);
+    return i === -1 ? NEUTRAL_TONE : cycle(i);
   }
 
   if (mode === 'group') {
     const groups = (model?.subgraphs ?? []).map((s) => s.id);
     const i = groups.indexOf(node.subgraph);
-    // A node outside every group keeps the flow colour rather than joining one.
-    return i === -1 ? 1 : cycle(i);
+    // A node outside every lane is in no lane, which is not the first lane.
+    return i === -1 ? NEUTRAL_TONE : cycle(i);
   }
 
   const kind = kindOf(node.shape);

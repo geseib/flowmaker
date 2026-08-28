@@ -54,6 +54,34 @@ const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 const TIMER_INTERVAL_MS = 33;
 // How long after letting go of the canvas the crawl picks up again.
 const DRAG_RESUME_MS = 1400;
+// One arrow press moves the view by a share of what is on screen, so a press
+// reads as a nudge and a held key reads as a smooth pan.
+export const NUDGE_FRACTION = 0.14;
+export const NUDGE_MIN_PX = 90;
+
+// Whether an arrow press should move the diagram. It must not steal the key
+// from someone typing, from a step-to-step keyboard walk, or from a card.
+export function shouldNudge(key, s = {}) {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(key)) return false;
+  return !s.typing && !s.nodeFocused && !s.modalOpen && !s.modifier;
+}
+
+// How far one press moves, and which way. A flow is nudged along its own axis
+// by the keys that point along it, and across by the other pair, so the arrows
+// mean the same thing whichever way the diagram runs.
+export function nudgeStep(key, view) {
+  // Whole pixels: a scroll offset is rounded by the browser anyway, and a
+  // fractional step would make two presses land unevenly.
+  const along = Math.round(Math.max(NUDGE_MIN_PX, view.width * NUDGE_FRACTION));
+  const across = Math.round(Math.max(NUDGE_MIN_PX, view.height * NUDGE_FRACTION));
+  switch (key) {
+    case 'ArrowRight': return { dx: along, dy: 0 };
+    case 'ArrowLeft': return { dx: -along, dy: 0 };
+    case 'ArrowDown': return { dx: 0, dy: across };
+    case 'ArrowUp': return { dx: 0, dy: -across };
+    default: return null;
+  }
+}
 // A window after the app scrolls the view in which scroll events are ignored,
 // so following a step is not mistaken for the user scrolling.
 const PROGRAMMATIC_SCROLL_MS = 700;
@@ -191,20 +219,24 @@ export function createCanvas(container, model, opts = {}) {
     container.scrollTop = origin.top - (e.clientY - origin.y);
   }
 
+  function holdAfterDrag() {
+    pausedBy.drag = true;
+    syncScrollPause();
+    if (dragResume !== null) clearTimeout(dragResume);
+    dragResume = setTimeout(() => {
+      dragResume = null;
+      pausedBy.drag = false;
+      lastFrame = 0;
+      scrollPos = scrollAxis() === 'left' ? container.scrollLeft : container.scrollTop;
+      syncScrollPause();
+    }, DRAG_RESUME_MS);
+  }
+
   function onPointerUp(e) {
     const wasPanning = panning;
     panning = false;
     container.dataset.panning = 'false';
-    if (wasPanning) {
-      if (dragResume !== null) clearTimeout(dragResume);
-      dragResume = setTimeout(() => {
-        dragResume = null;
-        pausedBy.drag = false;
-        lastFrame = 0;
-        scrollPos = scrollAxis() === 'left' ? container.scrollLeft : container.scrollTop;
-        syncScrollPause();
-      }, DRAG_RESUME_MS);
-    }
+    if (wasPanning) holdAfterDrag();
     try {
       container.releasePointerCapture?.(e.pointerId);
     } catch {
@@ -519,6 +551,18 @@ export function createCanvas(container, model, opts = {}) {
         top: Math.max(0, top),
         behavior: instant ? 'auto' : 'smooth',
       });
+    },
+    // An arrow key moves the view the way a drag would, and is treated as one:
+    // the crawl holds, and the walkthrough's highlight comes along rather than
+    // being left behind on a step that is no longer on screen.
+    nudge(key) {
+      const step = nudgeStep(key, { width: container.clientWidth, height: container.clientHeight });
+      if (!step) return false;
+      container.scrollLeft += step.dx;
+      container.scrollTop += step.dy;
+      holdAfterDrag();
+      opts.onUserScroll?.();
+      return true;
     },
     // Which step is nearest the middle of the viewport right now.
     nearestNodeToCentre() {

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   fitScale, shouldReflowVertical, advanceScroll, nearestNodeId,
   CANVAS_CSS, MIN_ZOOM, MAX_ZOOM, NARROW_BREAKPOINT,
+  nudgeStep, shouldNudge, NUDGE_MIN_PX,
 } from '../src/canvas.js';
 
 test('fit width scales the bounds to the viewport width', () => {
@@ -213,4 +214,59 @@ test('speed scales the crawl proportionally', () => {
   const slow = advanceScroll({ pos: 0, dir: 1, max: 1000, dt: 1, speed: 30, now: 0, holdUntil: 0 });
   assert.ok(Math.abs(fast.pos - base.pos * 2) < 0.001);
   assert.ok(Math.abs(slow.pos - base.pos / 2) < 0.001);
+});
+
+// --- the arrows move the diagram -------------------------------------------
+
+test('an arrow moves the view along the axis it points', () => {
+  const view = { width: 1000, height: 600 };
+  assert.deepEqual(nudgeStep('ArrowRight', view), { dx: 140, dy: 0 });
+  assert.deepEqual(nudgeStep('ArrowLeft', view), { dx: -140, dy: 0 });
+  // 14% of 600 is under the floor, so the vertical step takes the minimum.
+  assert.deepEqual(nudgeStep('ArrowDown', view), { dx: 0, dy: NUDGE_MIN_PX });
+  assert.deepEqual(nudgeStep('ArrowUp', view), { dx: 0, dy: -NUDGE_MIN_PX });
+  assert.deepEqual(nudgeStep('ArrowDown', { width: 1000, height: 1200 }), { dx: 0, dy: 168 });
+});
+
+test('a step is a share of the view, so it reads the same at any size', () => {
+  assert.ok(nudgeStep('ArrowRight', { width: 2000, height: 900 }).dx
+    > nudgeStep('ArrowRight', { width: 900, height: 900 }).dx);
+});
+
+test('a tiny view still moves a useful distance', () => {
+  const step = nudgeStep('ArrowRight', { width: 200, height: 120 });
+  assert.equal(step.dx, NUDGE_MIN_PX, 'a fraction of a small view would barely move');
+});
+
+test('other keys are not arrows', () => {
+  for (const key of ['Enter', ' ', 'Tab', 'a', 'PageDown', 'Home']) {
+    assert.equal(nudgeStep(key, { width: 1000, height: 600 }), null);
+  }
+});
+
+test('the arrows move the diagram when nothing else wants them', () => {
+  assert.equal(shouldNudge('ArrowRight', {}), true);
+  assert.equal(shouldNudge('ArrowUp', {}), true);
+});
+
+test('typing keeps its arrows', () => {
+  assert.equal(shouldNudge('ArrowRight', { typing: true }), false);
+});
+
+test('a focused step keeps step-to-step navigation', () => {
+  assert.equal(shouldNudge('ArrowRight', { nodeFocused: true }), false);
+});
+
+test('an open card keeps its own keys', () => {
+  assert.equal(shouldNudge('ArrowRight', { modalOpen: true }), false);
+});
+
+test('a modified arrow belongs to the browser, not the diagram', () => {
+  assert.equal(shouldNudge('ArrowRight', { modifier: true }), false);
+});
+
+test('only the arrows move the diagram', () => {
+  for (const key of ['Enter', 'Tab', 'k', 'PageDown', 'Escape']) {
+    assert.equal(shouldNudge(key, {}), false, `${key} should not pan`);
+  }
 });

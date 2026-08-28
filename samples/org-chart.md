@@ -6,22 +6,30 @@ palette: slate
 direction: TD
 density: standard
 layout: tree
-colorBy: level
+colorBy: tag
 ---
 
 ```mermaid
 flowchart TD
-  CEO["Dana Reyes<br/>Chief Executive"] --> CTO["Sam Okafor<br/>Chief Technology Officer"]
-  CEO --> COO["Priya Raman<br/>Chief Operating Officer"]
-  CTO --> PLATFORM["Alex Chen<br/>Platform Engineering"]
-  CTO --> PRODUCTENG["Nadia Haddad<br/>Product Engineering"]
-  CTO --> SECURITY["Tom Berg<br/>Security Engineering"]
+  CEO["Dana Reyes<br/>Chief Executive"]:::vp --> CTO["Sam Okafor<br/>Chief Technology Officer"]:::vp
+  CEO --> COO["Priya Raman<br/>Chief Operating Officer"]:::vp
+  CTO --> PLATFORM["Alex Chen<br/>Platform Engineering"]:::employee
+  CTO --> PRODUCTENG["Nadia Haddad<br/>Product Engineering"]:::employee
+  CTO --> SECURITY["Tom Berg<br/>Security Engineering"]:::employee
   PLATFORM --> INFRA["Infrastructure"]
   PLATFORM --> DATA["Data Platform"]
   PRODUCTENG --> WEB["Web"]
   PRODUCTENG --> MOBILE["Mobile"]
-  COO --> SUPPORT["Jo Whitfield<br/>Customer Support"]
-  COO --> FINANCE["Marcus Bell<br/>Finance"]
+  COO --> SUPPORT["Jo Whitfield<br/>Customer Support"]:::employee
+  COO --> FINANCE["Marcus Bell<br/>Finance"]:::employee
+  INFRA --> INFRA1["Ruth Adeyemi<br/>Site Reliability"]:::employee
+  INFRA --> INFRA2["Open<br/>Site Reliability"]:::open
+  DATA --> DATA1["Ken Watanabe<br/>Data Engineering"]:::employee
+  DATA --> DATA2["Lucia Moreau<br/>Analytics Engineering"]:::contractor
+  WEB --> WEB1["Sofia Duarte<br/>Front End"]:::employee
+  WEB --> WEB2["Open<br/>Front End"]:::open
+  MOBILE --> MOBILE1["Ravi Menon<br/>iOS"]:::employee
+  MOBILE --> MOBILE2["Erik Lund<br/>Android"]:::contractor
 ```
 
 ## CEO — Dana Reyes, Chief Executive
@@ -149,3 +157,78 @@ Sets the budget envelope that the rest of this chart is staffed within, and owns
 the invoicing path that engineering's payment work feeds.
 
 **Owns:** the operating plan, billing, and revenue reporting
+
+## INFRA1 — Ruth Adeyemi, Site Reliability
+
+> Carries the production on-call rotation and owns the incident review that follows.
+
+Permanent staff. Owns the runbooks the rotation depends on, which is why the
+role is filled rather than contracted: the knowledge has to stay in the team
+between incidents.
+
+**Reports to:** Infrastructure · **On-call:** primary rotation
+
+## INFRA2 — Open, Site Reliability
+
+> An open position: the second seat on the rotation, approved and unfilled.
+
+A single-person rotation is not a rotation. This seat is funded in the current
+plan and is the team's first constraint on taking further services.
+
+**Status:** open, approved · **Blocks:** widening the on-call rotation
+
+## DATA1 — Ken Watanabe, Data Engineering
+
+> Owns the ingestion pipelines and the freshness guarantees reporting depends on.
+
+Permanent staff. Works to the definitions the Data Platform group holds, and is
+the escalation point when a pipeline lands late.
+
+**Reports to:** Data Platform · **Target:** warehouse fresh within 15 minutes
+
+## DATA2 — Lucia Moreau, Analytics Engineering
+
+> On contract: builds the metric layer models the business reports against.
+
+A contract engagement with a defined end, scoped to the metric layer rebuild.
+Anything that must outlive the engagement is documented as it is built rather
+than at the end.
+
+**Status:** contract · **Ends:** with the metric layer rebuild
+
+## WEB1 — Sofia Duarte, Front End
+
+> Owns the browser experience, its performance budget, and its accessibility conformance.
+
+Permanent staff. Holds both budgets as release-blocking rather than
+aspirational, which is the reason they are owned here rather than centrally.
+
+**Reports to:** Web · **Target:** Core Web Vitals in the good band at p75
+
+## WEB2 — Open, Front End
+
+> An open position: the second front-end seat, approved for the current plan.
+
+The web surface is currently one deep. This seat exists so that a single
+absence does not stop the release train.
+
+**Status:** open, approved · **Blocks:** removing the single point of failure
+
+## MOBILE1 — Ravi Menon, iOS
+
+> Owns the iOS application and its place in the fortnightly release train.
+
+Permanent staff. Owns App Store review turnaround as part of release planning,
+which is why planning sits with the team rather than centrally.
+
+**Reports to:** Mobile · **Cadence:** fortnightly
+
+## MOBILE2 — Erik Lund, Android
+
+> On contract: owns the Android application through the current release train.
+
+A contract engagement covering Android delivery while the permanent role is
+being recruited. Release knowledge is written down as it is used, so the
+handover is not an event.
+
+**Status:** contract · **Handover:** documented as it is built

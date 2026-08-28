@@ -19,15 +19,6 @@ export function fileNameFor(title, ext) {
   return `${base || 'flow'}.${ext}`;
 }
 
-const HEADER_PAD = 28;
-
-// Height taken by the caption above the diagram, so the viewBox can grow by it.
-function headerHeight(meta, spec) {
-  if (!meta?.title) return 0;
-  const titleSize = Math.round(spec.fontSize * 1.7);
-  return titleSize + (meta.subtitle ? Math.round(spec.labelFontSize * 2.2) : 0) + HEADER_PAD;
-}
-
 // One .svg file holding the diagram and every choice made about it: the palette
 // tokens, the style, and the pulse. Vector, so it stays sharp on a marquee, and
 // openable by anything that reads SVG.
@@ -41,7 +32,6 @@ export function buildStandaloneSvg(input) {
   const style = getStyle(input.styleKey ?? DEFAULTS.style);
   const palette = getPalette(input.paletteKey ?? DEFAULTS.palette);
   const density = DENSITY[input.density] ? input.density : DEFAULTS.density;
-  const spec = DENSITY[density];
   const tokens = deriveTokens(palette, { dark: style.dark });
   const animated = (input.animationMode ?? 'pulse') === 'pulse';
 
@@ -58,30 +48,18 @@ export function buildStandaloneSvg(input) {
   });
 
   // Lift the diagram out of its own <svg> and into this one, so the file has a
-  // single root that can carry the tokens and the caption together.
+  // single root that can carry the tokens.
   const body = inner.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
 
-  const head = headerHeight(meta, spec);
   const w = input.model.bounds.w;
-  const h = input.model.bounds.h + head;
+  const h = input.model.bounds.h;
 
-  const captionCss = meta.title
-    ? `.fm-caption-title { fill: var(--ink); font-family: var(--font); font-size: ${Math.round(spec.fontSize * 1.7)}px; font-weight: 800; }\n`
-      + `.fm-caption-sub { fill: var(--ink-dim); font-family: var(--font); font-size: ${Math.round(spec.labelFontSize * 1.5)}px; font-weight: 500; }`
-    : '';
-
+  // No drawn caption: the file is the diagram, to be placed in a document that
+  // provides its own heading. The title stays as the accessible name only.
   const css = [
-    captionCss,
     styleCss(style.key, tokens, density),
     animated ? ANIMATE_CSS : '',
   ].filter(Boolean).join('\n');
-
-  const caption = meta.title
-    ? `<text class="fm-caption-title" x="0" y="${Math.round(spec.fontSize * 1.4)}">${esc(meta.title)}</text>`
-      + (meta.subtitle
-        ? `<text class="fm-caption-sub" x="0" y="${Math.round(spec.fontSize * 1.4 + spec.labelFontSize * 2)}">${esc(meta.subtitle)}</text>`
-        : '')
-    : '';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" class="fm-root" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(meta.title ?? 'Flow diagram')}">
@@ -90,6 +68,6 @@ export function buildStandaloneSvg(input) {
 ${css}
 </style>
 <rect class="fm-svg-ground" x="0" y="0" width="${w}" height="${h}" fill="var(--ground)"/>
-${caption}<g transform="translate(0 ${head})">${body}</g>
+${body}
 </svg>`;
 }

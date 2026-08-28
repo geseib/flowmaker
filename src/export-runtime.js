@@ -57,6 +57,7 @@ export function bootExport() {
     animationMode: data.animationMode,
     speed: data.speed,
     scrollTo: (node) => canvas.scrollToNode(node),
+    onNudge: (key) => canvas.nudge(key),
     // Hovering a step freezes the crawl as well as the pulse.
     onPause: () => canvas.pauseAutoScroll(),
     onResume: () => canvas.resumeAutoScroll(),

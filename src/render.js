@@ -182,6 +182,7 @@ function edgeMarkup(e, spec) {
 // diagram can be coloured by shape, by tier, or by lane without touching them.
 export const TONE_CSS = `
 .fm-node { --tone: var(--c1); --tone-ink: var(--c1-ink); --tone-soft: var(--c1-soft); }
+.fm-node[data-tone="0"] { --tone: var(--ink-dim); --tone-ink: var(--surface); --tone-soft: var(--surface-2); }
 .fm-node[data-tone="2"] { --tone: var(--c2); --tone-ink: var(--c2-ink); --tone-soft: var(--c2-soft); }
 .fm-node[data-tone="3"] { --tone: var(--c3); --tone-ink: var(--c3-ink); --tone-soft: var(--c3-soft); }
 .fm-node[data-tone="4"] { --tone: var(--c4); --tone-ink: var(--c4-ink); --tone-soft: var(--c4-soft); }
