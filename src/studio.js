@@ -84,9 +84,11 @@ function loadPrefs() {
   }
 }
 
+// Merged, not replaced: each caller knows about its own preference and none of
+// them should silently drop the others.
 function savePrefs(prefs) {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(prefs));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ ...loadPrefs(), ...prefs }));
   } catch {
     /* private mode: preferences simply do not persist */
   }
@@ -133,6 +135,7 @@ const STUDIO_HTML = `
       </div>
       <div class="fm-seg" style="margin-top:.4rem">
         <button type="button" data-action="toggle-scroll" aria-pressed="false">Auto-scroll</button>
+        <button type="button" data-action="toggle-details" aria-pressed="false" title="Show each step's details in a card beside the diagram, during a pulse or a walkthrough">Details</button>
       </div>
     </aside>
 
@@ -188,6 +191,7 @@ const STUDIO_HTML = `
     <span class="fm-present-title" id="fm-present-title"></span>
     <div class="fm-present-actions">
       <button type="button" data-action="toggle-scroll" aria-pressed="false">Auto-scroll</button>
+      <button type="button" data-action="toggle-details" aria-pressed="false">Details</button>
       <button type="button" data-action="anim-pulse">Pulse</button>
       <button type="button" data-action="anim-walkthrough">Walk</button>
       <button type="button" data-action="anim-off">Still</button>
@@ -206,6 +210,7 @@ export function mountStudio(root) {
     animationMode: 'pulse',
     speed: loadPrefs().speed ?? DEFAULT_SPEED,
     autoScroll: true,
+    detailPanel: loadPrefs().detailPanel ?? false,
     presenting: false,
     resolved: null,
     canvas: null,
@@ -269,6 +274,15 @@ export function mountStudio(root) {
     }
   }
 
+  function setDetailPanel(on) {
+    state.detailPanel = Boolean(on);
+    state.runtime?.setDetailPanel(state.detailPanel);
+    for (const b of root.querySelectorAll('[data-action="toggle-details"]')) {
+      b.setAttribute('aria-pressed', String(state.detailPanel));
+    }
+    savePrefs({ detailPanel: state.detailPanel });
+  }
+
   function exportInput() {
     const r = state.resolved;
     return {
@@ -284,6 +298,7 @@ export function mountStudio(root) {
       colorBy: r.meta.colorBy,
       animationMode: state.animationMode,
       autoScroll: state.autoScroll,
+      detailPanel: state.detailPanel,
       speed: state.speed,
     };
   }
@@ -342,7 +357,10 @@ export function mountStudio(root) {
       onZoom: (z) => { el('#fm-zoom-label').textContent = `${Math.round(z * 100)}%`; },
       // Scrolling the canvas by hand during a walkthrough moves the highlight to
       // whichever step you have scrolled to, rather than fighting you.
+      // The crawl moving the view is enough to move the card with it.
+      onViewMoved: () => state.runtime?.followView(),
       onUserScroll: () => {
+        state.runtime?.followView();
         if (state.animationMode !== 'walkthrough') return;
         const id = state.canvas?.nearestNodeToCentre();
         if (id) state.runtime?.goToId(id);
@@ -360,10 +378,13 @@ export function mountStudio(root) {
       // The arrows move the diagram, and the walkthrough's highlight rides along
       // with them, the same way it follows a drag.
       onNudge: (key) => state.canvas?.nudge(key) ?? false,
+      detailPanel: state.detailPanel,
+      nearestNodeToCentre: () => state.canvas?.nearestNodeToCentre(),
       onPause: () => state.canvas?.pauseAutoScroll(),
       onResume: () => state.canvas?.resumeAutoScroll(),
     });
     setAutoScroll(state.autoScroll ?? scrollDefaultFor(state.animationMode));
+    setDetailPanel(state.detailPanel);
 
     // The reading view leads with the same diagram, then the step details.
     docOut.innerHTML = documentToHtml({ ...resolved, svg });
@@ -644,6 +665,7 @@ export function mountStudio(root) {
       refreshExport();
     }
     if (action === 'toggle-scroll') setAutoScroll(!state.autoScroll);
+    if (action === 'toggle-details') setDetailPanel(!state.detailPanel);
     if (action === 'present') setPresenting(true);
     if (action === 'exit-present') setPresenting(false);
     if (action === 'copy-prompt') copyText(AUTHORING_PROMPT, e.target.closest('[data-action]'));

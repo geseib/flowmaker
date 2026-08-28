@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   fitScale, shouldReflowVertical, advanceScroll, nearestNodeId,
   CANVAS_CSS, MIN_ZOOM, MAX_ZOOM, NARROW_BREAKPOINT,
-  nudgeStep, shouldNudge, NUDGE_MIN_PX,
+  nudgeStep, shouldNudge, nudgeTarget, glideAt, walkStepFor, NUDGE_MIN_PX,
 } from '../src/canvas.js';
 
 test('fit width scales the bounds to the viewport width', () => {
@@ -269,4 +269,44 @@ test('only the arrows move the diagram', () => {
   for (const key of ['Enter', 'Tab', 'k', 'PageDown', 'Escape']) {
     assert.equal(shouldNudge(key, {}), false, `${key} should not pan`);
   }
+});
+
+test('a press past the end comes back around, rather than stopping dead', () => {
+  assert.deepEqual(nudgeTarget({ pos: 400, delta: 90, max: 437 }), { pos: 53, wrapped: true });
+  assert.deepEqual(nudgeTarget({ pos: 10, delta: -90, max: 437 }), { pos: 357, wrapped: true });
+});
+
+test('an ordinary press just moves', () => {
+  assert.deepEqual(nudgeTarget({ pos: 100, delta: 90, max: 437 }), { pos: 190, wrapped: false });
+});
+
+test('across the flow there is nothing to come around to, so it stops', () => {
+  assert.deepEqual(nudgeTarget({ pos: 400, delta: 90, max: 437, wrap: false }), { pos: 437, wrapped: false });
+  assert.deepEqual(nudgeTarget({ pos: 10, delta: -90, max: 437, wrap: false }), { pos: 0, wrapped: false });
+});
+
+test('a diagram that fits the screen has nowhere to go', () => {
+  assert.deepEqual(nudgeTarget({ pos: 0, delta: 90, max: 0 }), { pos: 0, wrapped: false });
+});
+
+test('the glide eases from where it was to where it is going', () => {
+  const g = (elapsed) => glideAt({ from: 0, to: 100, elapsed, duration: 200 }).pos;
+  assert.equal(g(0), 0);
+  assert.equal(glideAt({ from: 0, to: 100, elapsed: 200, duration: 200 }).done, true);
+  assert.equal(g(200), 100);
+  assert.ok(g(100) > 50, 'eased out: most of the distance is covered early');
+  assert.ok(g(50) < g(100) && g(100) < g(150), 'and it only ever moves forward');
+});
+
+test('a glide that has run over is simply finished', () => {
+  assert.deepEqual(glideAt({ from: 0, to: 100, elapsed: 9999, duration: 200 }), { pos: 100, done: true });
+  assert.deepEqual(glideAt({ from: 0, to: 100, elapsed: 5, duration: 0 }), { pos: 100, done: true });
+});
+
+test('during a walkthrough the arrows step the walk, forward on right and down', () => {
+  assert.equal(walkStepFor('ArrowRight'), 1);
+  assert.equal(walkStepFor('ArrowDown'), 1);
+  assert.equal(walkStepFor('ArrowLeft'), -1);
+  assert.equal(walkStepFor('ArrowUp'), -1);
+  assert.equal(walkStepFor('Enter'), 0);
 });

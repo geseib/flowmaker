@@ -44,7 +44,10 @@ export function bootExport() {
     seamSubtitle: data.meta?.subtitle,
     // Scrolling by hand during a walkthrough carries the highlight along and
     // holds the auto-advance while the viewer looks around.
+    // The crawl moving the view carries the detail card with it.
+    onViewMoved: () => runtimeRef?.followView(),
     onUserScroll: () => {
+      runtimeRef?.followView();
       if (runtimeRef?.getMode?.() !== 'walkthrough') return;
       const id = canvas.nearestNodeToCentre();
       if (id) runtimeRef.goToId(id);
@@ -58,6 +61,8 @@ export function bootExport() {
     speed: data.speed,
     scrollTo: (node) => canvas.scrollToNode(node),
     onNudge: (key) => canvas.nudge(key),
+    detailPanel: data.detailPanel ?? false,
+    nearestNodeToCentre: () => canvas.nearestNodeToCentre(),
     // Hovering a step freezes the crawl as well as the pulse.
     onPause: () => canvas.pauseAutoScroll(),
     onResume: () => canvas.resumeAutoScroll(),
@@ -128,6 +133,13 @@ export function bootExport() {
     if (action === 'zoom-in') canvas.zoomBy(1.2);
     if (action === 'zoom-out') canvas.zoomBy(1 / 1.2);
     if (action === 'toggle-scroll') setScroll(!canvas.isAutoScrolling());
+    if (action === 'toggle-details') {
+      const on = e.target.closest('[data-fm-action]').getAttribute('aria-pressed') !== 'true';
+      runtime.setDetailPanel(on);
+      for (const b of root.querySelectorAll('[data-fm-action="toggle-details"]')) {
+        b.setAttribute('aria-pressed', String(on));
+      }
+    }
     if (action === 'restart') restart();
     if (action === 'present') setPresenting(true);
     if (action === 'exit-present') setPresenting(false);

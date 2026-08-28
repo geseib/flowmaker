@@ -74,6 +74,7 @@ export function buildExport(input, bundle = {}) {
     layout: input.layout ?? DEFAULTS.layout,
     colorBy: input.colorBy ?? DEFAULTS.colorBy,
     animationMode: input.animationMode ?? 'pulse',
+    detailPanel: input.detailPanel ?? false,
     autoScroll: input.autoScroll ?? (input.animationMode ?? 'pulse') === 'pulse',
     speed: SPEEDS.includes(input.speed) ? input.speed : DEFAULT_SPEED,
   };
@@ -105,6 +106,7 @@ export function buildExport(input, bundle = {}) {
       <button type="button" data-fm-action="anim-walk" aria-pressed="false">Walkthrough</button>
       <button type="button" data-fm-action="anim-off" aria-pressed="false">Still</button>
       <button type="button" data-fm-action="toggle-scroll" aria-pressed="false">Auto-scroll</button>
+      <button type="button" data-fm-action="toggle-details" aria-pressed="${data.detailPanel ? 'true' : 'false'}">Details</button>
       <button type="button" data-fm-action="restart" aria-label="Restart" title="Restart from the beginning">&#8635;</button>
       <button type="button" data-fm-action="present" aria-label="Present full screen" title="Present full screen">&#9974;</button>
       <button type="button" data-fm-action="fit-width">Fit</button>

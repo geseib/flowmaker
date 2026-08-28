@@ -58,6 +58,38 @@ const DRAG_RESUME_MS = 1400;
 // reads as a nudge and a held key reads as a smooth pan.
 export const NUDGE_FRACTION = 0.14;
 export const NUDGE_MIN_PX = 90;
+// How long one nudge takes to travel.
+export const NUDGE_GLIDE_MS = 220;
+
+// Where a glide has reached, eased so a press starts and stops softly rather
+// than jumping. Pure, because the timer that drives it is the awkward part.
+export function glideAt({ from, to, elapsed, duration }) {
+  if (!(duration > 0) || elapsed >= duration) return { pos: to, done: true };
+  const t = Math.max(0, elapsed) / duration;
+  const eased = 1 - (1 - t) ** 3;
+  return { pos: from + (to - from) * eased, done: false };
+}
+
+// Where one press lands. Along the axis the flow runs on, the view wraps the
+// way the crawl does: a diagram longer than the screen has no end to be stuck
+// at, and stopping dead at the last pixel is the thing that feels broken.
+export function nudgeTarget({ pos, delta, max, wrap = true }) {
+  if (!(max > 1)) return { pos: 0, wrapped: false };
+  const next = pos + delta;
+  if (!wrap) return { pos: Math.min(max, Math.max(0, next)), wrapped: false };
+  if (next > max) return { pos: next - max, wrapped: true };
+  if (next < 0) return { pos: next + max, wrapped: true };
+  return { pos: next, wrapped: false };
+}
+
+// During a walkthrough the arrows move the walk itself rather than the view:
+// stepping lands on the next step exactly, where panning only drifts towards
+// it. Forward is right and down, which is the way every flow is read.
+export function walkStepFor(key) {
+  if (key === 'ArrowRight' || key === 'ArrowDown') return 1;
+  if (key === 'ArrowLeft' || key === 'ArrowUp') return -1;
+  return 0;
+}
 
 // Whether an arrow press should move the diagram. It must not steal the key
 // from someone typing, from a step-to-step keyboard walk, or from a card.
@@ -179,6 +211,10 @@ export function createCanvas(container, model, opts = {}) {
   const horizontalFlow = model.direction !== 'TD' && model.direction !== 'BT';
   let zoom = opts.zoom ?? 1;
   let panning = false;
+  // Where a nudge is heading, so a quick second press adds to it rather than
+  // measuring from a position the view has already left behind.
+  let nudgeGoal = null;
+  let glideTimer = null;
   let origin = { x: 0, y: 0, left: 0, top: 0 };
 
   function apply() {
@@ -198,7 +234,39 @@ export function createCanvas(container, model, opts = {}) {
 
   const NO_PAN = '.fm-node, .fm-modal-backdrop, .fm-tooltip, button, a, input, select, textarea';
 
+  function forgetNudgeGoal() {
+    nudgeGoal = null;
+    if (glideTimer !== null) {
+      clearInterval(glideTimer);
+      glideTimer = null;
+    }
+  }
+
+  // The view is moved on a timer rather than by scroll-behavior: smooth, for
+  // the same reason the crawl does not use requestAnimationFrame. Both are
+  // driven by the browser's rendering steps, which stop being delivered
+  // whenever it decides the page is not being painted — an occluded window, a
+  // background tab, some kiosk and secondary-display setups. There the native
+  // animation never arrives and the view simply does not move.
+  function glide(prop, to) {
+    if (glideTimer !== null) clearInterval(glideTimer);
+    const from = container[prop];
+    const started = nowMs();
+    glideTimer = setInterval(() => {
+      const at = glideAt({ from, to, elapsed: nowMs() - started, duration: NUDGE_GLIDE_MS });
+      container[prop] = at.pos;
+      scrollPos = scrollAxis() === 'left' ? container.scrollLeft : container.scrollTop;
+      if (at.done) {
+        clearInterval(glideTimer);
+        glideTimer = null;
+        nudgeGoal = null;
+      }
+      opts.onUserScroll?.();
+    }, TIMER_INTERVAL_MS);
+  }
+
   function onPointerDown(e) {
+    forgetNudgeGoal();
     // Panning must never start on a node or on interface chrome: capturing the
     // pointer here would retarget the click and swallow it.
     if (e.target.closest(NO_PAN)) return;
@@ -434,6 +502,7 @@ export function createCanvas(container, model, opts = {}) {
 
     if (axis === 'left') container.scrollLeft = Math.round(scrollPos);
     else container.scrollTop = Math.round(scrollPos);
+    opts.onViewMoved?.();
   }
 
   // Driven by a plain interval rather than requestAnimationFrame. rAF stops
@@ -545,6 +614,7 @@ export function createCanvas(container, model, opts = {}) {
       if (!node) return;
       const left = contentLeft() + node.x * zoom - container.clientWidth / 2 + (node.w * zoom) / 2;
       const top = contentTop() + node.y * zoom - container.clientHeight / 2 + (node.h * zoom) / 2;
+      forgetNudgeGoal();
       programmaticUntil = nowMs() + PROGRAMMATIC_SCROLL_MS;
       container.scrollTo({
         left: Math.max(0, left),
@@ -558,9 +628,48 @@ export function createCanvas(container, model, opts = {}) {
     nudge(key) {
       const step = nudgeStep(key, { width: container.clientWidth, height: container.clientHeight });
       if (!step) return false;
-      container.scrollLeft += step.dx;
-      container.scrollTop += step.dy;
+      const axis = scrollAxis();
+      const horizontal = axis === 'left';
+      const along = horizontal ? step.dx : step.dy;
+      const across = horizontal ? step.dy : step.dx;
+      const max = horizontal
+        ? container.scrollWidth - container.clientWidth
+        : container.scrollHeight - container.clientHeight;
+
       holdAfterDrag();
+
+      if (along !== 0) {
+        // While a smooth nudge is still travelling, the container reports where
+        // it is rather than where it is going. Pressing again would then
+        // measure from the old position and land on the same place, so every
+        // other press did nothing. Count from the pending destination instead.
+        const live = horizontal ? container.scrollLeft : container.scrollTop;
+        const from = nudgeGoal ?? live;
+        const to = nudgeTarget({ pos: from, delta: along, max });
+        const prop = horizontal ? 'scrollLeft' : 'scrollTop';
+        // A wrap is a jump by design, so it lands at once; an ordinary press
+        // glides, which is what makes holding the key read as a pan.
+        if (to.wrapped) {
+          forgetNudgeGoal();
+          container[prop] = to.pos;
+        } else {
+          nudgeGoal = to.pos;
+          glide(prop, to.pos);
+        }
+        scrollPos = to.pos;
+        lastFrame = 0;
+      }
+
+      if (across !== 0) {
+        const crossMax = horizontal
+          ? container.scrollHeight - container.clientHeight
+          : container.scrollWidth - container.clientWidth;
+        // Across the flow there is nothing to loop through, so it stops at the edge.
+        const prop = horizontal ? 'scrollTop' : 'scrollLeft';
+        const to = nudgeTarget({ pos: container[prop], delta: across, max: crossMax, wrap: false });
+        container[prop] = to.pos;
+      }
+
       opts.onUserScroll?.();
       return true;
     },
@@ -619,6 +728,7 @@ export function createCanvas(container, model, opts = {}) {
     isAutoScrolling: () => scrollWanted,
     destroy() {
       stopAutoScroll();
+      forgetNudgeGoal();
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('pointerup', onPointerUp);

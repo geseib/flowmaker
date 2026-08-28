@@ -85,14 +85,17 @@ studio reports any section that matches no node, and any node with no section.
   inlined, named after the diagram (`Order_Processing.svg`). No script, no
   network, no embedded fonts, and no drawn title: the file is the diagram, for a
   document that supplies its own heading.
-- **The arrow keys move the diagram** — left and right pan a horizontal flow,
-  up and down a vertical one, and during a pulse or a walkthrough the highlight
-  comes along, exactly as it does when you drag. A focused step keeps its
-  step-to-step navigation, and a text field keeps its own arrows.
-- **A detail card during the walkthrough** — as each step lights up, the detail
-  a click would open is docked clear of it: a wide band below a left-to-right
-  flow, a column beside a top-down one, flipping to the other side when the
-  step itself is in the way. Hovering the card holds the walk while you read.
+- **The arrow keys move the diagram** — during a walkthrough they step the walk
+  itself, landing on each step exactly. Otherwise they pan: left and right along
+  a horizontal flow, up and down a vertical one, gliding rather than jumping,
+  and coming back around at the end rather than stopping dead. A focused step
+  keeps its step-to-step navigation, and a text field keeps its own arrows.
+- **A detail card, on request** — turn on Details and each step's detail is
+  docked clear of it: a wide band below a left-to-right flow, a column beside a
+  top-down one, flipping to the other side when the step itself is in the way.
+  In a walkthrough it follows the walk; otherwise it follows the view, which
+  the crawl moves for you or you move with the arrows. Hovering the card holds
+  everything while you read.
 - **Icons** — the Infographic style resolves an inline SVG icon per step from
   the label (`Capture Payment` → money, `Review Contract` → document), falling
   back to the mermaid shape, and sets it in a ring. Force one with

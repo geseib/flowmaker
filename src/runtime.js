@@ -1,6 +1,6 @@
 import { mdToHtml } from './md.js';
 import { createAnimator, ANIMATE_CSS } from './animate.js';
-import { shouldNudge } from './canvas.js';
+import { shouldNudge, walkStepFor } from './canvas.js';
 
 export { ANIMATE_CSS };
 
@@ -128,6 +128,10 @@ export function shouldRestoreFocus(s) {
 // the card goes there; a vertical flow leaves it to the sides.
 export const WALK_PANEL = { band: 0.38, sideBand: 0.36, margin: 16, maxSide: 460 };
 
+// How long the walkthrough waits after being stepped by hand, so a press is not
+// immediately overtaken by the clock.
+export const WALK_KEY_HOLD_MS = 2500;
+
 // The card must never cover the step it is describing. It sits on whichever
 // side of the active node has room for it, preferring below (or right) so that
 // a diagram read in order has its card in a consistent place.
@@ -213,11 +217,14 @@ export function attachRuntime(root, config = {}) {
     suppressFocusTooltip: false,
   };
 
+  let panelWanted = config.detailPanel ?? false;
+
   const animator = createAnimator(root, model, {
     mode: config.animationMode ?? 'pulse',
     speed: config.speed,
     prefersReducedMotion: config.prefersReducedMotion,
     onStep: (id, index, total) => {
+      panelId = id;
       showWalkPanel(id, index, total);
       config.onStep?.(id, index, total);
     },
@@ -266,9 +273,9 @@ export function attachRuntime(root, config = {}) {
 
   function showWalkPanel(id, index, total) {
     const detail = details[id];
-    // A card only appears during the walkthrough, and only for a step that has
-    // something to say. Hovering and clicking are unchanged.
-    if (!detail || root.dataset.anim !== 'walkthrough' || ui.modalOpen) {
+    // The card is an option, and it steps aside for a card that was opened by
+    // clicking. Hovering and clicking are otherwise unchanged.
+    if (!detail || !panelWanted || ui.modalOpen) {
       hideWalkPanel();
       return;
     }
@@ -284,6 +291,7 @@ export function attachRuntime(root, config = {}) {
     lede.textContent = detail.tooltip ?? '';
     lede.hidden = !detail.tooltip;
     const step = panel.querySelector('.fm-walk-panel-step');
+    // A pulse has no step number: nothing is counting through the diagram.
     step.textContent = Number.isFinite(index) && total ? `Step ${index + 1} of ${total}` : '';
     step.hidden = !step.textContent;
     panel.querySelector('.fm-modal-body').innerHTML = mdToHtml(detail.bodyMd);
@@ -295,6 +303,21 @@ export function attachRuntime(root, config = {}) {
 
   // Reading the card holds the walk where it is, the same way hovering a step
   // does. Without this a long card scrolls away mid-sentence.
+  // Which step the card is describing, so a view that has not moved on does not
+  // rebuild the same card on every frame.
+  let panelId = null;
+
+  // In a pulse there is no active step, so the card follows whichever step the
+  // view is on. With the crawl running that changes by itself; with it stopped
+  // it changes when the reader moves, which is the point.
+  function followView() {
+    if (!panelWanted || root.dataset.anim === 'walkthrough') return;
+    const id = config.nearestNodeToCentre?.();
+    if (!id || id === panelId) return;
+    panelId = id;
+    showWalkPanel(id);
+  }
+
   const onPanelEnter = () => { ui.panelHover = true; sync(); };
   const onPanelLeave = () => { ui.panelHover = false; sync(); };
   panel.addEventListener('pointerenter', onPanelEnter);
@@ -526,6 +549,19 @@ export function attachRuntime(root, config = {}) {
       modalOpen: ui.modalOpen,
       modifier: e.metaKey || e.ctrlKey || e.altKey,
     })) return;
+    // A walkthrough is a sequence, so the arrows walk it. Everything else is a
+    // picture, so the arrows move the picture.
+    if (root.dataset.anim === 'walkthrough') {
+      const dir = walkStepFor(e.key);
+      if (!dir) return;
+      if (dir > 0) animator.next();
+      else animator.prev();
+      // Hold the auto-advance, so stepping by hand is not immediately
+      // overtaken by the clock.
+      animator.deferAdvance(WALK_KEY_HOLD_MS);
+      e.preventDefault();
+      return;
+    }
     if (config.onNudge?.(e.key)) e.preventDefault();
   };
 
@@ -560,8 +596,11 @@ export function attachRuntime(root, config = {}) {
   return {
     animator,
     setAnimationMode: (mode) => {
-      if (mode !== 'walkthrough') hideWalkPanel();
+      panelId = null;
+      hideWalkPanel();
       animator.setMode(mode);
+      // A pulse has no step to announce, so the card has to go looking.
+      if (mode !== 'walkthrough') followView();
     },
     restart: () => animator.restart(),
     setSpeed: (n) => animator.setSpeed(n),
@@ -582,6 +621,25 @@ export function attachRuntime(root, config = {}) {
     openModal,
     closeModal,
     hideWalkPanel,
+    // The card is a preference, not a mode: it belongs to whichever animation
+    // is running, and to neither when it is off.
+    setDetailPanel(on) {
+      panelWanted = Boolean(on);
+      if (!panelWanted) {
+        panelId = null;
+        hideWalkPanel();
+        return;
+      }
+      if (root.dataset.anim === 'walkthrough') {
+        const id = animator.getState().activeId;
+        if (id) showWalkPanel(id, animator.getState().activeIndex, animator.getState().total);
+      } else {
+        panelId = null;
+        followView();
+      }
+    },
+    // Called when the view has moved, by the crawl or by the reader.
+    followView,
     destroy() {
       animator.destroy();
       root.removeEventListener('pointerover', onOver);
