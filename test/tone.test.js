@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toneOf, kindOf, TONE_COUNT } from '../src/tone.js';
+import { toneOf, kindOf, tagsOf, tagOrder, TONE_COUNT } from '../src/tone.js';
 import { COLOR_BY_KEYS } from '../src/constants.js';
 
 const node = (over = {}) => ({ id: 'A', shape: 'rect', rank: 0, subgraph: null, classes: [], ...over });
@@ -77,4 +77,60 @@ test('the shape kinds are unchanged', () => {
   assert.equal(kindOf('rhombus'), 'decision');
   assert.equal(kindOf('stadium'), 'terminal');
   assert.equal(kindOf('whatever'), 'process');
+});
+
+// --- the author's own categories -------------------------------------------
+
+const tagged = (id, tag, over = {}) => node({ id, classes: tag ? [tag] : [], ...over });
+const withNodes = (...nodes) => ({ nodes, subgraphs: [] });
+
+test('by tag, each category the author named gets its own swatch', () => {
+  const m = withNodes(tagged('A', 'vp'), tagged('B', 'employee'), tagged('C', 'contractor'));
+  assert.equal(toneOf(m.nodes[0], 'tag', m), 1);
+  assert.equal(toneOf(m.nodes[1], 'tag', m), 2);
+  assert.equal(toneOf(m.nodes[2], 'tag', m), 3);
+});
+
+test('the same tag is the same colour wherever it appears', () => {
+  const m = withNodes(tagged('A', 'vp'), tagged('B', 'employee'), tagged('C', 'vp'));
+  assert.equal(toneOf(m.nodes[0], 'tag', m), toneOf(m.nodes[2], 'tag', m));
+  assert.notEqual(toneOf(m.nodes[1], 'tag', m), toneOf(m.nodes[0], 'tag', m));
+});
+
+test('tags are coloured in the order they first appear, not alphabetically', () => {
+  const m = withNodes(tagged('A', 'zulu'), tagged('B', 'alpha'));
+  assert.equal(toneOf(m.nodes[0], 'tag', m), 1, 'zulu appears first, so zulu is c1');
+  assert.equal(toneOf(m.nodes[1], 'tag', m), 2);
+});
+
+test('an untagged node keeps the flow colour rather than joining a category', () => {
+  const m = withNodes(tagged('A', 'vp'), tagged('B', null));
+  assert.equal(toneOf(m.nodes[1], 'tag', m), 1);
+});
+
+test('more categories than swatches start the swatches over', () => {
+  const m = withNodes(...['a', 'b', 'c', 'd', 'e'].map((t, i) => tagged(`N${i}`, t)));
+  assert.deepEqual(m.nodes.map((n) => toneOf(n, 'tag', m)), [1, 2, 3, 4, 1]);
+});
+
+test('an icon or a pinned swatch is not mistaken for a tag', () => {
+  assert.deepEqual(tagsOf(node({ classes: ['icon-money', 'c3', 'vp'] })), ['vp']);
+  assert.deepEqual(tagsOf(node({ classes: ['c1', 'icon-database'] })), []);
+});
+
+test('a pinned swatch still beats the tag it also carries', () => {
+  const m = withNodes(node({ id: 'A', classes: ['vp'] }), node({ id: 'B', classes: ['employee', 'c4'] }));
+  assert.equal(toneOf(m.nodes[1], 'tag', m), 4);
+});
+
+test('the tag order is stable, and reads as the legend would', () => {
+  const m = withNodes(tagged('A', 'vp'), tagged('B', 'employee'), tagged('C', 'vp'));
+  assert.deepEqual(tagOrder(m), ['vp', 'employee']);
+  assert.deepEqual(tagOrder(m), tagOrder(m));
+});
+
+test('a diagram with no tags at all is uniform rather than broken', () => {
+  const m = withNodes(node({ id: 'A' }), node({ id: 'B' }));
+  assert.deepEqual(tagOrder(m), []);
+  assert.deepEqual(m.nodes.map((n) => toneOf(n, 'tag', m)), [1, 1]);
 });

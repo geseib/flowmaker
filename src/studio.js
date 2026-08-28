@@ -8,6 +8,7 @@ import { browserMeasure } from './measure.js';
 import { showIconsFor } from './icons.js';
 import { buildExport } from './export.js';
 import { buildEmbed } from './embed.js';
+import { buildStandaloneSvg, fileNameFor } from './svg.js';
 import { resolveDocument } from './app.js';
 import { documentToHtml } from './md.js';
 import { renderMermaidPreview } from './mermaid-preview.js';
@@ -16,7 +17,7 @@ import { replaceMermaidBlock } from './parse.js';
 
 const STORE_KEY = 'flowmaker.prefs.v1';
 // What each colouring mode keys off, said plainly rather than as its key.
-const COLOR_BY_LABELS = { type: 'Step type', level: 'Level', group: 'Group' };
+const COLOR_BY_LABELS = { type: 'Node type', level: 'Level', group: 'Group', tag: 'Tag' };
 // How long the walkthrough waits after someone scrolls the canvas by hand.
 const WALK_SCROLL_HOLD_MS = 2500;
 const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
@@ -109,6 +110,7 @@ const STUDIO_HTML = `
       <button type="button" data-action="refresh" title="Re-render (the editor also refreshes on its own)">Refresh</button>
       <button type="button" data-action="restart" title="Restart the flow from the beginning" aria-label="Restart">&#8635;</button>
       <button type="button" data-action="present" title="Present full screen" aria-label="Present full screen">&#9974;</button>
+      <button type="button" data-action="download-svg" title="Save the diagram as one .svg file: vector, every choice baked in, no script. Type is set in the reader's system fonts rather than an embedded face.">Save SVG</button>
       <button type="button" data-action="download" class="fm-primary">Export HTML</button>
     </div>
   </header>
@@ -514,15 +516,22 @@ export function mountStudio(root) {
     area.select();
   }
 
-  const slug = () => (state.resolved?.meta.title || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-
-  function downloadHtml(text, suffix = '') {
-    const blob = new Blob([text], { type: 'text/html' });
+  const saveAs = (text, type, name) => {
+    const blob = new Blob([text], { type });
     const a = doc.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${slug()}${suffix}.html`;
+    a.download = name;
     a.click();
     URL.revokeObjectURL(a.href);
+  };
+
+  const savedName = (ext, suffix = '') => {
+    const title = state.resolved?.meta.title;
+    return suffix ? fileNameFor(`${title ?? 'flow'}${suffix}`, ext) : fileNameFor(title, ext);
+  };
+
+  function downloadHtml(text, suffix = '') {
+    saveAs(text, 'text/html', savedName('html', suffix));
   }
 
   function restart() {
@@ -641,12 +650,24 @@ export function mountStudio(root) {
       return;
     }
     if (action === 'download') {
-      const blob = new Blob([buildExport(exportInput(), { runtimeJs: window.__FM_RUNTIME_BUNDLE__ ?? '' })], { type: 'text/html' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${slug()}.html`;
-      a.click();
-      URL.revokeObjectURL(a.href);
+      saveAs(
+        buildExport(exportInput(), { runtimeJs: window.__FM_RUNTIME_BUNDLE__ ?? '' }),
+        'text/html',
+        savedName('html'),
+      );
+    }
+    if (action === 'download-svg') {
+      const r = state.resolved;
+      saveAs(buildStandaloneSvg({
+        meta: r.meta,
+        model: r.model,
+        details: r.details,
+        styleKey: r.meta.style,
+        paletteKey: r.meta.palette,
+        density: r.meta.density,
+        colorBy: r.meta.colorBy,
+        animationMode: state.animationMode,
+      }), 'image/svg+xml', savedName('svg'));
     }
   });
 

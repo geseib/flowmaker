@@ -156,10 +156,18 @@ A palette is four swatches. \`colorBy\` decides which nodes wear which:
   an org chart, and good for a staged process.
 - \`group\` — each \`subgraph\` lane gets its own colour. Best when the phases
   matter more than the step types.
+- \`tag\` — each category I name gets its own colour. Tag a node by appending
+  \`:::<tag>\` to it, using whatever vocabulary fits: \`:::vp\`, \`:::employee\`,
+  \`:::contractor\`, or \`:::manual\`, \`:::automated\`. Every node carrying the
+  same tag gets the same colour, in the order the tags first appear. Keep it to
+  four categories, since a palette has four colours, and ask me what the
+  categories are rather than inventing them. An untagged node stays the flow
+  colour.
 
 To pin one node, append \`:::c1\`, \`:::c2\`, \`:::c3\`, or \`:::c4\` to it, as in
 \`ESCALATE[Escalate to On-Call]:::c4\`. An explicit swatch beats every mode, so
-use it sparingly — for the one box that has to stand out. \`c4\` is the alert
+use it sparingly — for the one box that has to stand out, rather than as a way
+to hand-colour a whole diagram; that is what \`tag\` is for. \`c4\` is the alert
 colour and is otherwise unused by nodes, which makes it the right choice for a
 failure or escalation path.
 

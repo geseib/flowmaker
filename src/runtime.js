@@ -53,6 +53,41 @@ export const RUNTIME_CSS = `
   font-size: 1.1rem; line-height: 1;
 }
 .fm-modal-close:focus-visible { outline: 2px solid var(--c2); outline-offset: 2px; }
+
+/* The walkthrough's detail card. Same content and styling as the card a click
+   opens, but docked out of the way of the step it describes rather than
+   covering the diagram, so the two can be read together. */
+.fm-walk-panel {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  display: grid;
+  gap: 0 1.6rem;
+  overflow: auto;
+  padding: 1.1rem 1.3rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font);
+  box-shadow: 0 2px 8px rgb(0 0 0 / .10), 0 18px 48px rgb(0 0 0 / .22);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .22s ease;
+}
+.fm-walk-panel[data-open="true"] { opacity: 1; visibility: visible; }
+/* Docked below or above a horizontal flow, the card is wide: the heading takes
+   a fixed measure and the detail runs alongside it rather than under it. */
+.fm-walk-panel[data-axis="horizontal"] { grid-template-columns: minmax(14ch, 24ch) minmax(0, 1fr); align-items: start; }
+.fm-walk-panel[data-axis="vertical"] { grid-template-columns: minmax(0, 1fr); }
+.fm-walk-panel-head { min-width: 0; }
+.fm-walk-panel-eyebrow { margin: 0; color: var(--tone, var(--c1)); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.fm-walk-panel h3 { margin: .15em 0 .3em; font-size: 1.25rem; line-height: 1.2; }
+.fm-walk-panel-lede { margin: 0; color: var(--ink-dim); font-size: .95rem; line-height: 1.45; }
+.fm-walk-panel .fm-modal-body { min-width: 0; font-size: .93rem; line-height: 1.5; }
+.fm-walk-panel[data-axis="vertical"] .fm-modal-body { margin-top: .9em; }
+.fm-walk-panel-step { margin: 0; color: var(--ink-dim); font-size: .72rem; font-weight: 700; letter-spacing: .1em; }
+@media (prefers-reduced-motion: reduce) { .fm-walk-panel { transition: none; } }
 @media (prefers-reduced-motion: reduce) {
   .fm-tooltip, .fm-modal-backdrop, .fm-modal { transition: none; }
 }
@@ -72,6 +107,7 @@ export function shouldPauseMotion(s) {
   return s.hoveredId !== null
     || (s.focusedId !== null && s.keyboardNav)
     || s.modalOpen
+    || s.panelHover === true
     || s.externalPause;
 }
 
@@ -84,6 +120,36 @@ export function shouldPauseMotion(s) {
 // explain it.
 export function shouldRestoreFocus(s) {
   return s.keyboardNav === true;
+}
+
+// How much of the view the walk's detail card may take, across the axis the
+// flow does not use. A horizontal flow leaves whitespace above and below it, so
+// the card goes there; a vertical flow leaves it to the sides.
+export const WALK_PANEL = { band: 0.38, sideBand: 0.36, margin: 16, maxSide: 460 };
+
+// The card must never cover the step it is describing. It sits on whichever
+// side of the active node has room for it, preferring below (or right) so that
+// a diagram read in order has its card in a consistent place.
+export function walkPanelPlacement({ direction, node, viewport }) {
+  const horizontal = direction === 'LR' || direction === 'RL' || direction === undefined;
+
+  if (horizontal) {
+    const band = viewport.height * WALK_PANEL.band;
+    const above = node.top - viewport.top;
+    const below = viewport.bottom - node.bottom;
+    if (below >= band) return { edge: 'bottom', axis: 'horizontal' };
+    if (above >= band) return { edge: 'top', axis: 'horizontal' };
+    // Neither side fits the full band, so take the roomier one and let the card
+    // shrink into it rather than landing on top of the node.
+    return { edge: below >= above ? 'bottom' : 'top', axis: 'horizontal' };
+  }
+
+  const band = Math.min(viewport.width * WALK_PANEL.sideBand, WALK_PANEL.maxSide);
+  const left = node.left - viewport.left;
+  const right = viewport.right - node.right;
+  if (right >= band) return { edge: 'right', axis: 'vertical' };
+  if (left >= band) return { edge: 'left', axis: 'vertical' };
+  return { edge: right >= left ? 'right' : 'left', axis: 'vertical' };
 }
 
 export function tooltipTargetId(s) {
@@ -116,6 +182,18 @@ export function attachRuntime(root, config = {}) {
     + '<p class="fm-modal-lede"></p><div class="fm-modal-body"></div></div>';
   chromeHost.appendChild(backdrop);
 
+  // The walkthrough's card: the same detail a click opens, docked clear of the
+  // step it describes so both can be read at once.
+  const panel = doc.createElement('div');
+  panel.className = 'fm-walk-panel';
+  panel.setAttribute('aria-live', 'polite');
+  panel.dataset.open = 'false';
+  panel.innerHTML = '<div class="fm-walk-panel-head">'
+    + '<p class="fm-walk-panel-eyebrow"></p><h3></h3><p class="fm-walk-panel-lede"></p>'
+    + '<p class="fm-walk-panel-step"></p></div>'
+    + '<div class="fm-modal-body"></div>';
+  chromeHost.appendChild(panel);
+
   const modal = backdrop.querySelector('.fm-modal');
   const closeBtn = backdrop.querySelector('.fm-modal-close');
   let lastFocus = null;
@@ -128,6 +206,7 @@ export function attachRuntime(root, config = {}) {
     hoveredId: null,
     focusedId: null,
     modalOpen: false,
+    panelHover: false,
     externalPause: false,
     keyboardNav: false,
     suppressFocusTooltip: false,
@@ -137,11 +216,88 @@ export function attachRuntime(root, config = {}) {
     mode: config.animationMode ?? 'pulse',
     speed: config.speed,
     prefersReducedMotion: config.prefersReducedMotion,
-    onStep: config.onStep,
+    onStep: (id, index, total) => {
+      showWalkPanel(id, index, total);
+      config.onStep?.(id, index, total);
+    },
     scrollTo: config.scrollTo,
   });
 
-  const elFor = (id) => root.querySelector(`.fm-node[data-node-id="${cssEscape(id)}"]`);
+  function elFor(id) {
+    return root.querySelector(`.fm-node[data-node-id="${cssEscape(id)}"]`);
+  }
+
+  // --- the walkthrough's detail card ---------------------------------------
+
+  function hideWalkPanel() {
+    panel.dataset.open = 'false';
+    if (ui.panelHover) {
+      ui.panelHover = false;
+      sync();
+    }
+  }
+
+  function placeWalkPanel(el) {
+    const viewportEl = root.closest('.fm-canvas') ?? root.parentElement ?? root;
+    const viewport = viewportEl.getBoundingClientRect();
+    const node = el.getBoundingClientRect();
+    const { edge, axis } = walkPanelPlacement({ direction: model.direction, node, viewport });
+    const m = WALK_PANEL.margin;
+    panel.dataset.axis = axis;
+
+    if (axis === 'horizontal') {
+      const room = edge === 'bottom' ? viewport.bottom - node.bottom : node.top - viewport.top;
+      const height = Math.max(96, Math.min(viewport.height * WALK_PANEL.band, room - m * 2));
+      panel.style.left = `${viewport.left + m}px`;
+      panel.style.width = `${Math.max(0, viewport.width - m * 2)}px`;
+      panel.style.maxHeight = `${height}px`;
+      panel.style.top = edge === 'bottom' ? `${viewport.bottom - m - height}px` : `${viewport.top + m}px`;
+      return;
+    }
+
+    const room = edge === 'right' ? viewport.right - node.right : node.left - viewport.left;
+    const width = Math.max(220, Math.min(viewport.width * WALK_PANEL.sideBand, WALK_PANEL.maxSide, room - m * 2));
+    panel.style.width = `${width}px`;
+    panel.style.top = `${viewport.top + m}px`;
+    panel.style.maxHeight = `${Math.max(0, viewport.height - m * 2)}px`;
+    panel.style.left = edge === 'right' ? `${viewport.right - m - width}px` : `${viewport.left + m}px`;
+  }
+
+  function showWalkPanel(id, index, total) {
+    const detail = details[id];
+    // A card only appears during the walkthrough, and only for a step that has
+    // something to say. Hovering and clicking are unchanged.
+    if (!detail || root.dataset.anim !== 'walkthrough' || ui.modalOpen) {
+      hideWalkPanel();
+      return;
+    }
+    const el = elFor(id);
+    if (!el) {
+      hideWalkPanel();
+      return;
+    }
+
+    panel.querySelector('.fm-walk-panel-eyebrow').textContent = detail.id;
+    panel.querySelector('h3').textContent = detail.title || detail.id;
+    const lede = panel.querySelector('.fm-walk-panel-lede');
+    lede.textContent = detail.tooltip ?? '';
+    lede.hidden = !detail.tooltip;
+    const step = panel.querySelector('.fm-walk-panel-step');
+    step.textContent = Number.isFinite(index) && total ? `Step ${index + 1} of ${total}` : '';
+    step.hidden = !step.textContent;
+    panel.querySelector('.fm-modal-body').innerHTML = mdToHtml(detail.bodyMd);
+    panel.scrollTop = 0;
+
+    placeWalkPanel(el);
+    panel.dataset.open = 'true';
+  }
+
+  // Reading the card holds the walk where it is, the same way hovering a step
+  // does. Without this a long card scrolls away mid-sentence.
+  const onPanelEnter = () => { ui.panelHover = true; sync(); };
+  const onPanelLeave = () => { ui.panelHover = false; sync(); };
+  panel.addEventListener('pointerenter', onPanelEnter);
+  panel.addEventListener('pointerleave', onPanelLeave);
 
   const TOOLTIP_GAP = 12;
   const TOOLTIP_EDGE = 10;
@@ -229,6 +385,7 @@ export function attachRuntime(root, config = {}) {
     lede.textContent = detail.tooltip ?? '';
     lede.hidden = !detail.tooltip;
     backdrop.querySelector('.fm-modal-body').innerHTML = mdToHtml(detail.bodyMd);
+    hideWalkPanel();
     backdrop.dataset.open = 'true';
     ui.modalOpen = true;
     sync();
@@ -384,7 +541,10 @@ export function attachRuntime(root, config = {}) {
 
   return {
     animator,
-    setAnimationMode: (mode) => animator.setMode(mode),
+    setAnimationMode: (mode) => {
+      if (mode !== 'walkthrough') hideWalkPanel();
+      animator.setMode(mode);
+    },
     restart: () => animator.restart(),
     setSpeed: (n) => animator.setSpeed(n),
     goToId: (id) => animator.goToId(id),
@@ -403,6 +563,7 @@ export function attachRuntime(root, config = {}) {
     },
     openModal,
     closeModal,
+    hideWalkPanel,
     destroy() {
       animator.destroy();
       root.removeEventListener('pointerover', onOver);
@@ -417,8 +578,11 @@ export function attachRuntime(root, config = {}) {
       doc.removeEventListener('keydown', onNavKey);
       doc.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('blur', onLeave);
+      panel.removeEventListener('pointerenter', onPanelEnter);
+      panel.removeEventListener('pointerleave', onPanelLeave);
       tooltip.remove();
       backdrop.remove();
+      panel.remove();
     },
   };
 }

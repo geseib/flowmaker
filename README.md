@@ -42,7 +42,7 @@ direction: LR            # LR | RL | TD | BT
 density: marquee         # marquee | standard | compact
 loops: auto              # auto | line | wrap
 layout: flow             # flow | tree (tree is an org chart: one box above each)
-colorBy: type            # type | level | group
+colorBy: type            # type | level | group | tag
 ---
 
 ```mermaid
@@ -71,12 +71,22 @@ studio reports any section that matches no node, and any node with no section.
 - **Four-swatch palettes** — `c1` flow, `c2` decision, `c3` accent, `c4` alert.
   Surface and text tones are derived in OKLCH, so body text always clears 7:1
   against its background and node labels always clear 4.5:1.
-- **Colour by step type, level, or group** — the palette chooses the colours;
-  `colorBy` chooses who wears which. `type` colours decisions and terminals
-  apart (the default), `level` gives each rank or tier its own swatch (what an
-  org chart wants), `group` gives each subgraph lane its own. Pin one node with
-  `ESCALATE:::c4`, which beats every mode. Styles ask for `var(--tone)` and
-  stay out of the decision, so the modes cost each style nothing.
+- **Colour by node type, level, group, or tag** — the palette chooses the
+  colours; `colorBy` chooses who wears which. `type` colours decisions and
+  terminals apart (the default), `level` gives each rank or tier its own swatch
+  (what an org chart wants), `group` gives each subgraph lane its own, and `tag`
+  gives each category you name one — write `:::vp`, `:::contractor`, and every
+  node carrying that tag matches, in the order the tags first appear. Pin a
+  single node with `ESCALATE:::c4`, which beats every mode. Styles ask for
+  `var(--tone)` and stay out of the decision, so the modes cost each style
+  nothing.
+- **Save as SVG** — one vector file with the palette, the style, and the pulse
+  inlined, named after the diagram (`Order_Processing.svg`). No script, no
+  network, no embedded fonts.
+- **A detail card during the walkthrough** — as each step lights up, the detail
+  a click would open is docked clear of it: a wide band below a left-to-right
+  flow, a column beside a top-down one, flipping to the other side when the
+  step itself is in the way. Hovering the card holds the walk while you read.
 - **Icons** — the Infographic style resolves an inline SVG icon per step from
   the label (`Capture Payment` → money, `Review Contract` → document), falling
   back to the mermaid shape, and sets it in a ring. Force one with

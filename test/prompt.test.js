@@ -118,3 +118,9 @@ test('the frontmatter example carries every key the tool reads', () => {
     assert.match(p, new RegExp(`^${key}: `, 'm'), `${key} is missing from the example`);
   }
 });
+
+test('it explains tags, which are the author\'s own vocabulary', () => {
+  const p = buildAuthoringPrompt();
+  assert.match(p, /:::vp|:::<tag>/, 'tagging syntax must be shown');
+  assert.match(p, /four categories|four colours/, 'the four-colour limit must be stated');
+});

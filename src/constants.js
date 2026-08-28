@@ -17,7 +17,7 @@ export const DIRECTION_KEYS = ['LR', 'RL', 'TD', 'BT'];
 export const LAYOUT_KEYS = ['flow', 'tree'];
 
 // What decides which of the palette's four swatches a node wears.
-export const COLOR_BY_KEYS = ['type', 'level', 'group'];
+export const COLOR_BY_KEYS = ['type', 'level', 'group', 'tag'];
 
 export const LOOP_KEYS = ['auto', 'line', 'wrap'];
 
