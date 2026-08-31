@@ -91,6 +91,13 @@ studio reports any section that matches no node, and any node with no section.
   a horizontal flow, up and down a vertical one, gliding rather than jumping,
   and coming back around at the end rather than stopping dead. A focused step
   keeps its step-to-step navigation, and a text field keeps its own arrows.
+- **What a step takes in and puts out** — tag a node `:::input` or `:::output`
+  and it stops being a step: it becomes a card that appears above the flow when
+  its step is in focus, with the arrow pointing the way you drew it. Inputs sit
+  on the upstream side, outputs on the downstream side, so position and
+  direction say the same thing. One service can feed several steps and appears
+  on each. Turning them on leaves the diagram itself identical, because they are
+  lifted out before anything is measured.
 - **A detail card, on request** — turn on Details and each step's detail is
   docked clear of it: a wide band below a left-to-right flow, a column beside a
   top-down one, flipping to the other side when the step itself is in the way.

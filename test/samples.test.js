@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseDocument } from '../src/parse.js';
 import { parseMermaid } from '../src/mermaid.js';
+import { liftAttachments } from '../src/attachments.js';
 import { layout } from '../src/layout.js';
 import { renderSvg } from '../src/render.js';
 import { PALETTES, getPalette } from '../src/palettes.js';
@@ -20,11 +21,15 @@ test('the samples directory holds every sample', () => {
 for (const file of files) {
   const md = readFileSync(join(DIR, file), 'utf8');
   const doc = parseDocument(md);
-  const graph = parseMermaid(doc.mermaidSrc);
+  // Inputs and outputs are not steps: they take no rank and need no detail
+  // section, so the conformance checks below run on the flow itself.
+  const parsed = parseMermaid(doc.mermaidSrc);
+  const { graph, attachments } = liftAttachments(parsed);
 
   test(`${file}: parses with no warnings`, () => {
     assert.deepEqual(doc.warnings, [], `document warnings: ${JSON.stringify(doc.warnings)}`);
-    assert.deepEqual(graph.warnings, [], `mermaid warnings: ${JSON.stringify(graph.warnings)}`);
+    assert.deepEqual(parsed.warnings, [], `mermaid warnings: ${JSON.stringify(parsed.warnings)}`);
+    assert.deepEqual(liftAttachments(parsed).warnings, [], 'attachment warnings');
   });
 
   test(`${file}: frontmatter is complete and every value is valid`, () => {
@@ -83,6 +88,13 @@ for (const file of files) {
         });
         assert.ok(svg.startsWith('<svg'), `${file} @${density}/${styleKey} did not render`);
       }
+    }
+  });
+
+  test(`${file}: every attachment hangs off a step that exists`, () => {
+    const ids = new Set(graph.nodes.map((n) => n.id));
+    for (const hostId of attachments.keys()) {
+      assert.ok(ids.has(hostId), `${file}: attachment hangs off "${hostId}", which is not a step`);
     }
   });
 }

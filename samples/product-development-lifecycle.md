@@ -23,6 +23,10 @@ flowchart LR
       DRAFT -->|doc: Draft| CRITIQUE
       CRITIQUE -->|retry: Changes| DRAFT
     end
+    BLUEPRINTS[Blueprints MCP]:::input --> DRAFT
+    CONTROLS[Controls MCP]:::input --> DRAFT
+    CONTROLS --> POLICY
+    POLICY --> FINDINGS[/Policy Findings/]:::output
     subgraph panel [Architecture Review]
       SECREV[Security Architect]:::icon-human
       DATAREV[Data Architect]:::icon-human
@@ -38,6 +42,8 @@ flowchart LR
     PRINC --> VERDICT
     POLICY --> VERDICT
     VERDICT --> RISK[Record Risks and Decisions]
+    RISK --> RISKMCP[Risk MCP]:::output
+    RISK --> ADR[/Decision Records/]:::output
   end
 
   subgraph sdlc [SDLC]
@@ -45,11 +51,19 @@ flowchart LR
     BUILD --> VERIFY{Quality Gate}
     VERIFY --> RELEASE[Release to Production]
   end
+  BLUEPRINTS --> PLAN
+  BUILD --> ARTIFACT[/Build Artifact/]:::output
+  TESTS[/Test Results/]:::input --> VERIFY
+  CONTROLS --> VERIFY
+  RELEASE --> PACKAGE[/Release Package/]:::output
 
   subgraph ops [Operations]
     OPERATE[Operate and Monitor] --> HEALTH{Healthy in Production?}
     HEALTH --> LEARN[Feed Learnings Back]
   end
+  TELEMETRY[Telemetry MCP]:::input --> OPERATE
+  RISKMCP2[Risk MCP]:::input --> OPERATE
+  OPERATE --> INCIDENTS[/Incident Log/]:::output
 
   BCASE -->|Not funded| SHAPE
   BCASE -->|doc: Product Request| DRAFT
@@ -59,6 +73,11 @@ flowchart LR
   RELEASE --> OPERATE
   HEALTH -->|Incident| BUILD
   LEARN --> OPP
+  class BLUEPRINTS icon-api
+  class CONTROLS icon-shield
+  class RISKMCP icon-alert
+  class RISKMCP2 icon-alert
+  class TELEMETRY icon-chart
 ```
 
 ## OPP — Identify Opportunity

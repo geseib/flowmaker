@@ -29,7 +29,7 @@ const cycle = (i) => ((i % TONE_COUNT) + TONE_COUNT) % TONE_COUNT + 1;
 
 // A class is a tag unless it is one of the names the tool has already claimed.
 // Everything else — vp, contractor, vendor — is the author's own vocabulary.
-const RESERVED = /^(c[1-4]|icon-[a-z0-9-]+)$/i;
+const RESERVED = /^(c[1-4]|icon-[a-z0-9-]+|input|output)$/i;
 
 export function tagsOf(node) {
   return (node.classes ?? []).map((c) => String(c).trim()).filter((c) => c && !RESERVED.test(c));

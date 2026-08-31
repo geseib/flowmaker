@@ -1,6 +1,8 @@
 import { mdToHtml } from './md.js';
 import { createAnimator, ANIMATE_CSS } from './animate.js';
 import { shouldNudge, walkStepFor } from './canvas.js';
+import { bandLayout, BAND } from './attachments.js';
+import { ICONS } from './icons.js';
 
 export { ANIMATE_CSS };
 
@@ -54,6 +56,49 @@ export const RUNTIME_CSS = `
   font-size: 1.1rem; line-height: 1;
 }
 .fm-modal-close:focus-visible { outline: 2px solid var(--c2); outline-offset: 2px; }
+
+/* What a step takes in and puts out, shown while it is in focus. The cards sit
+   in the whitespace above the flow — beside it when the flow runs downward —
+   with inputs on the upstream side and outputs on the downstream side, so
+   position and arrow direction say the same thing. */
+.fm-band { position: fixed; inset: 0; z-index: 55; pointer-events: none; opacity: 0; transition: opacity .2s ease; }
+.fm-band[data-open="true"] { opacity: 1; }
+.fm-band-wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.fm-band-wire { fill: none; stroke: var(--border); stroke-width: 2; }
+.fm-band-wire[data-dir="out"] { stroke: color-mix(in oklab, var(--c3) 60%, var(--border)); }
+.fm-band-arrow { fill: var(--border); }
+.fm-band-arrow[data-dir="out"] { fill: color-mix(in oklab, var(--c3) 60%, var(--border)); }
+.fm-band-card {
+  position: absolute;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .1rem .6rem;
+  align-content: center;
+  padding: .6rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .10), 0 10px 26px rgb(0 0 0 / .16);
+  transform: translateY(6px);
+  opacity: 0;
+  transition: opacity .22s ease, transform .22s ease;
+}
+.fm-band[data-open="true"] .fm-band-card { transform: none; opacity: 1; }
+.fm-band-card svg { grid-row: 1 / span 2; align-self: center; width: 22px; height: 22px; color: var(--c1); }
+.fm-band-card[data-dir="out"] svg { color: var(--c3); }
+.fm-band-name { font-size: .85rem; font-weight: 700; line-height: 1.25; overflow-wrap: break-word; hyphens: auto; }
+.fm-band-kind { font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+.fm-band-more {
+  position: absolute; padding: .3rem .6rem; border-radius: 999px;
+  border: 1px dashed var(--border); background: var(--surface); color: var(--ink-dim);
+  font-family: var(--font); font-size: .7rem; font-weight: 700;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fm-band, .fm-band-card { transition: none; }
+}
 
 /* The walkthrough's detail card. Same content and styling as the card a click
    opens, but docked out of the way of the step it describes rather than
@@ -199,6 +244,14 @@ export function attachRuntime(root, config = {}) {
     + '<div class="fm-modal-body"></div>';
   chromeHost.appendChild(panel);
 
+  // What the focused step takes in and puts out. An overlay, so the diagram
+  // never reflows and is unchanged when nothing is in focus.
+  const band = doc.createElement('div');
+  band.className = 'fm-band';
+  band.dataset.open = 'false';
+  band.setAttribute('aria-hidden', 'true');
+  chromeHost.appendChild(band);
+
   const modal = backdrop.querySelector('.fm-modal');
   const closeBtn = backdrop.querySelector('.fm-modal-close');
   let lastFocus = null;
@@ -218,6 +271,10 @@ export function attachRuntime(root, config = {}) {
   };
 
   let panelWanted = config.detailPanel ?? false;
+  // The band belongs to whatever is in focus, and to nothing when nothing is.
+  let bandWanted = config.attachmentBand ?? true;
+  // The step a click put in focus, so its band can come back when a card closes.
+  let selectedId = null;
 
   const animator = createAnimator(root, model, {
     mode: config.animationMode ?? 'pulse',
@@ -225,6 +282,7 @@ export function attachRuntime(root, config = {}) {
     prefersReducedMotion: config.prefersReducedMotion,
     onStep: (id, index, total) => {
       panelId = id;
+      showBand(id);
       showWalkPanel(id, index, total);
       config.onStep?.(id, index, total);
     },
@@ -233,6 +291,108 @@ export function attachRuntime(root, config = {}) {
 
   function elFor(id) {
     return root.querySelector(`.fm-node[data-node-id="${cssEscape(id)}"]`);
+  }
+
+  // --- what a step takes in and puts out -----------------------------------
+
+  let bandId = null;
+
+  function hideBand() {
+    band.dataset.open = 'false';
+    band.replaceChildren();
+    bandId = null;
+  }
+
+  // A short curve from the card to the step, with the arrowhead only at the
+  // destination: into the step for an input, into the card for an output.
+  function wire(card, node, dir, horizontal) {
+    const from = horizontal
+      ? { x: card.x + card.w / 2, y: dir === 'in' ? card.y + card.h : card.y }
+      : { x: dir === 'in' ? card.x : card.x + card.w, y: card.y + card.h / 2 };
+    const to = horizontal
+      ? { x: node.left + node.width / 2, y: card.y > node.top ? node.bottom : node.top }
+      : { x: card.x > node.left ? node.right : node.left, y: node.top + node.height / 2 };
+    const a = dir === 'in' ? from : to;
+    const b = dir === 'in' ? to : from;
+    const bend = horizontal ? Math.abs(b.y - a.y) * 0.55 : Math.abs(b.x - a.x) * 0.55;
+    const c1 = horizontal ? { x: a.x, y: a.y + Math.sign(b.y - a.y) * bend } : { x: a.x + Math.sign(b.x - a.x) * bend, y: a.y };
+    const c2 = horizontal ? { x: b.x, y: b.y - Math.sign(b.y - a.y) * bend } : { x: b.x - Math.sign(b.x - a.x) * bend, y: b.y };
+    return { d: `M ${a.x} ${a.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${b.x} ${b.y}`, tip: b, from: c2 };
+  }
+
+  function showBand(id) {
+    const node = model.nodes.find((n) => n.id === id);
+    const items = node?.attachments ?? [];
+    if (!bandWanted || items.length === 0 || ui.modalOpen) {
+      hideBand();
+      return;
+    }
+    const el = elFor(id);
+    if (!el) {
+      hideBand();
+      return;
+    }
+
+    const viewportEl = root.closest('.fm-canvas') ?? root.parentElement ?? root;
+    const viewport = viewportEl.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    const horizontal = model.direction !== 'TD' && model.direction !== 'BT';
+    const placed = bandLayout({ node: rect, viewport, items, horizontal });
+    if (!placed.side) {
+      hideBand();
+      return;
+    }
+
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = doc.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'fm-band-wires');
+    const nodes = [svg];
+
+    placed.cards.forEach((c, i) => {
+      const w = wire(c, rect, c.direction, horizontal);
+      const path = doc.createElementNS(NS, 'path');
+      path.setAttribute('class', 'fm-band-wire');
+      path.setAttribute('d', w.d);
+      path.dataset.dir = c.direction;
+      svg.appendChild(path);
+
+      // The arrowhead, pointed along the curve's last segment.
+      const angle = Math.atan2(w.tip.y - w.from.y, w.tip.x - w.from.x);
+      const head = doc.createElementNS(NS, 'path');
+      const size = 7;
+      const pt = (turn) => `${w.tip.x - size * Math.cos(angle - turn)},${w.tip.y - size * Math.sin(angle - turn)}`;
+      head.setAttribute('class', 'fm-band-arrow');
+      head.setAttribute('d', `M ${w.tip.x} ${w.tip.y} L ${pt(0.42)} L ${pt(-0.42)} Z`);
+      head.dataset.dir = c.direction;
+      svg.appendChild(head);
+
+      const cardEl = doc.createElement('div');
+      cardEl.className = 'fm-band-card';
+      cardEl.dataset.dir = c.direction;
+      cardEl.style.cssText = `left:${c.x}px;top:${c.y}px;width:${c.w}px;min-height:${c.h}px;transition-delay:${i * 45}ms`;
+      cardEl.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[c.icon] ?? ICONS.document}</svg>`
+        + `<span class="fm-band-name"></span><span class="fm-band-kind"></span>`;
+      cardEl.querySelector('.fm-band-name').textContent = c.label;
+      // The icon already says what kind of thing it is; the caption only has to
+      // say which way it goes, which is the thing a reader is scanning for.
+      cardEl.querySelector('.fm-band-kind').textContent = c.direction === 'in' ? 'Input' : 'Output';
+      nodes.push(cardEl);
+    });
+
+    if (placed.overflow > 0) {
+      const more = doc.createElement('div');
+      more.className = 'fm-band-more';
+      const last = placed.cards.at(-1);
+      more.style.cssText = horizontal
+        ? `left:${last.x + last.w - 60}px;top:${last.y - 30}px`
+        : `left:${last.x}px;top:${last.y + last.h + 8}px`;
+      more.textContent = `+${placed.overflow} more`;
+      nodes.push(more);
+    }
+
+    band.replaceChildren(...nodes);
+    band.dataset.open = 'true';
+    bandId = id;
   }
 
   // --- the walkthrough's detail card ---------------------------------------
@@ -410,6 +570,7 @@ export function attachRuntime(root, config = {}) {
     lede.hidden = !detail.tooltip;
     backdrop.querySelector('.fm-modal-body').innerHTML = mdToHtml(detail.bodyMd);
     hideWalkPanel();
+    hideBand();
     backdrop.dataset.open = 'true';
     ui.modalOpen = true;
     sync();
@@ -440,6 +601,10 @@ export function attachRuntime(root, config = {}) {
       ui.focusedId = null;
     }
     lastFocus = null;
+    const back = root.dataset.anim === 'walkthrough'
+      ? animator.getState().activeId
+      : selectedId;
+    if (back) showBand(back);
     sync();
   }
 
@@ -580,7 +745,14 @@ export function attachRuntime(root, config = {}) {
 
   const onClick = (e) => {
     const n = e.target.closest?.('.fm-node');
-    if (n?.dataset.hasDetail === 'true') openModal(n.dataset.nodeId);
+    if (!n) return;
+    // Clicking a step selects it: its inputs and outputs come up, and the view
+    // centres on it so the band has somewhere to sit. The detail card opens as
+    // it always has, and the band is waiting again when that card closes.
+    selectedId = n.dataset.nodeId;
+    config.scrollTo?.(model.nodes.find((x) => x.id === selectedId));
+    if (n.dataset.hasDetail === 'true') openModal(n.dataset.nodeId);
+    else showBand(selectedId);
   };
 
   const onBackdrop = (e) => {
@@ -604,6 +776,8 @@ export function attachRuntime(root, config = {}) {
     animator,
     setAnimationMode: (mode) => {
       panelId = null;
+      selectedId = null;
+      hideBand();
       hideWalkPanel();
       animator.setMode(mode);
       // A pulse has no step to announce, so the card has to go looking.
@@ -628,6 +802,8 @@ export function attachRuntime(root, config = {}) {
     openModal,
     closeModal,
     hideWalkPanel,
+    showBand,
+    hideBand,
     // The card is a preference, not a mode: it belongs to whichever animation
     // is running, and to neither when it is off.
     setDetailPanel(on) {
@@ -666,6 +842,7 @@ export function attachRuntime(root, config = {}) {
       tooltip.remove();
       backdrop.remove();
       panel.remove();
+      band.remove();
     },
   };
 }

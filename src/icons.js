@@ -191,3 +191,18 @@ export function iconFor(node) {
   // 3. The shape, as a last resort.
   return SHAPE_FALLBACK[node.shape] ?? null;
 }
+
+// What an attachment is: a document, a data store, a service. The shape comes
+// first here, unlike a step, because drawing a cylinder is the author saying
+// "this is a data store" outright — while a keyword in the label is a guess
+// that can land on the wrong word. "Customer Database" reads as a person if the
+// label is asked first, and as a store if the shape is.
+export function attachmentIconFor(node) {
+  for (const cls of node?.classes ?? []) {
+    if (cls.startsWith('icon-')) {
+      const name = cls.slice(5);
+      if (name in ICONS) return name;
+    }
+  }
+  return SHAPE_FALLBACK[node?.shape] ?? iconFor(node) ?? 'document';
+}

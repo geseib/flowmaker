@@ -4,6 +4,7 @@ import { parseDocument } from './parse.js';
 import { parseMermaid } from './mermaid.js';
 import { layout } from './layout.js';
 import { showIcons } from './icons.js';
+import { liftAttachments } from './attachments.js';
 
 const PALETTE_KEYS = PALETTES.map((p) => p.key);
 
@@ -21,8 +22,14 @@ export function resolveDocument(mdText, overrides = {}, measure) {
   const doc = parseDocument(mdText);
   const warnings = [...doc.warnings];
 
-  const graph = parseMermaid(doc.mermaidSrc);
-  warnings.push(...graph.warnings);
+  const parsed = parseMermaid(doc.mermaidSrc);
+  warnings.push(...parsed.warnings);
+
+  // Inputs and outputs are lifted out before anything measures the diagram:
+  // they are not steps, and turning them on must leave the flow identical.
+  const lifted = liftAttachments(parsed);
+  warnings.push(...lifted.warnings);
+  const graph = lifted.graph;
 
   const meta = {
     title: doc.meta.title ?? 'Untitled Flow',
@@ -64,6 +71,11 @@ export function resolveDocument(mdText, overrides = {}, measure) {
     iconSpace: showIcons(meta.style, meta.icons),
     loops: meta.loops,
   });
+
+  for (const n of model.nodes) {
+    const own = lifted.attachments.get(n.id);
+    if (own) n.attachments = own;
+  }
 
   return { meta, graph, details: doc.details, model, warnings, mermaidSrc: doc.mermaidSrc };
 }

@@ -210,6 +210,23 @@ Use it for a real artifact — a document, a payment, a package, a signed
 contract. A plain branch label like "Approved" or "Rejected" stays a plain
 label.
 
+**A step's inputs and outputs.** Tag a node \`:::input\` or \`:::output\` and it
+stops being a step in the flow: it becomes a card shown above the diagram when
+its step is in focus, with the arrow pointing the way you drew it.
+
+    BLUEPRINTS[Blueprints MCP]:::input --> DRAFT[Draft Technical Design]
+    CONTROLS[Controls MCP]:::input --> DRAFT
+    DRAFT --> SPEC[/Technical Spec/]:::output
+
+Use it for the things a step consumes and produces that are not themselves
+steps: a system of record, a service it calls, a document it emits. One service
+can feed several steps — write it once and connect it to each. What kind of
+thing it is comes from its shape: \`[(Cylinder)]\` for a data store,
+\`[/Parallelogram/]\` for a document, \`[Rectangle]\` for a service.
+
+Ask me what each step reads and writes — it is usually the part a flow chart
+leaves out, and the part a reader most wants.
+
 **Group steps into phases** with \`subgraph <id> [Label] ... end\`. Groups can
 nest, and the outer box is drawn around the inner one:
 
