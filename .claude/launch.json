@@ -4,8 +4,10 @@
     {
       "name": "flowmaker",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["server.js"],
-      "port": 8321
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "autoPort": true
     }
   ]
 }

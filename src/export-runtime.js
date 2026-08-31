@@ -47,6 +47,7 @@ export function bootExport() {
     // holds the auto-advance while the viewer looks around.
     // The crawl moving the view carries the detail card with it.
     onViewMoved: () => runtimeRef?.followView(),
+    onResized: () => runtimeRef?.reposition(),
     onUserScroll: () => {
       runtimeRef?.followView();
       if (runtimeRef?.getMode?.() !== 'walkthrough') return;

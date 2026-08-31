@@ -13,23 +13,23 @@ test('a horizontal flow puts the card in the band below', () => {
   assert.deepEqual(p, { edge: 'bottom', axis: 'horizontal' });
 });
 
-test('a step low on screen sends the card above it instead', () => {
-  const p = walkPanelPlacement({ direction: 'LR', node: at({ top: 480, bottom: 560 }), viewport: view });
-  assert.equal(p.edge, 'top', 'the card must never cover the step it describes');
+test('the card stays put wherever the step is, so it is never hunted for', () => {
+  // It used to flip to the top when the step sat low, which meant the card moved
+  // between steps of the same walk. The diagram is centred in the view and the
+  // attachments take the space above it, so the bottom is always its place.
+  for (const top of [0, 120, 300, 480, 560]) {
+    const p = walkPanelPlacement({ direction: 'LR', node: at({ top, bottom: top + 70 }), viewport: view });
+    assert.deepEqual(p, { edge: 'bottom', axis: 'horizontal' }, `moved for a step at ${top}`);
+  }
 });
 
 test('a right-to-left flow is still horizontal', () => {
   assert.equal(walkPanelPlacement({ direction: 'RL', node: at(), viewport: view }).axis, 'horizontal');
 });
 
-test('with room on neither side the card takes the roomier one', () => {
-  const tall = at({ top: 40, bottom: 560 });
-  const p = walkPanelPlacement({ direction: 'LR', node: tall, viewport: view });
-  assert.equal(p.axis, 'horizontal');
-  assert.equal(p.edge, 'bottom', 'below has 40px, above has 40px — ties go to the default');
-
-  const lower = at({ top: 120, bottom: 590 });
-  assert.equal(walkPanelPlacement({ direction: 'LR', node: lower, viewport: view }).edge, 'top');
+test('a step taller than the view still gets its card', () => {
+  const p = walkPanelPlacement({ direction: 'LR', node: at({ top: 40, bottom: 560 }), viewport: view });
+  assert.deepEqual(p, { edge: 'bottom', axis: 'horizontal' });
 });
 
 // --- a flow that reads down -----------------------------------------------

@@ -383,6 +383,8 @@ export function mountStudio(root) {
       // whichever step you have scrolled to, rather than fighting you.
       // The crawl moving the view is enough to move the card with it.
       onViewMoved: () => state.runtime?.followView(),
+      // Full screen, or a window resize: the chrome measured the old shape.
+      onResized: () => state.runtime?.reposition(),
       onUserScroll: () => {
         state.runtime?.followView();
         if (state.animationMode !== 'walkthrough') return;

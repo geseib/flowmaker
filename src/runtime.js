@@ -124,7 +124,15 @@ export const RUNTIME_CSS = `
 .fm-walk-panel[data-open="true"] { opacity: 1; visibility: visible; }
 /* Docked below or above a horizontal flow, the card is wide: the heading takes
    a fixed measure and the detail runs alongside it rather than under it. */
-.fm-walk-panel[data-axis="horizontal"] { grid-template-columns: minmax(14ch, 24ch) minmax(0, 1fr); align-items: start; }
+.fm-walk-panel[data-axis="horizontal"] {
+  grid-template-columns: minmax(14ch, 24ch) minmax(0, 1fr);
+  align-items: start;
+  /* Docked along the bottom edge, so only the leading corners are rounded and
+     the shadow is cast upward, onto the diagram it sits in front of. */
+  border-radius: 16px 16px 0 0;
+  border-bottom: 0;
+  box-shadow: 0 -2px 8px rgb(0 0 0 / .08), 0 -14px 40px rgb(0 0 0 / .20);
+}
 .fm-walk-panel[data-axis="vertical"] { grid-template-columns: minmax(0, 1fr); }
 .fm-walk-panel-head { min-width: 0; }
 .fm-walk-panel-eyebrow { margin: 0; color: var(--tone, var(--c1)); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
@@ -171,28 +179,21 @@ export function shouldRestoreFocus(s) {
 // How much of the view the walk's detail card may take, across the axis the
 // flow does not use. A horizontal flow leaves whitespace above and below it, so
 // the card goes there; a vertical flow leaves it to the sides.
-export const WALK_PANEL = { band: 0.34, sideBand: 0.34, margin: 28, maxSide: 460 };
+export const WALK_PANEL = { band: 0.32, sideBand: 0.34, margin: 28, maxSide: 460 };
 
 // How long the walkthrough waits after being stepped by hand, so a press is not
 // immediately overtaken by the clock.
 export const WALK_KEY_HOLD_MS = 2500;
 
-// The card must never cover the step it is describing. It sits on whichever
-// side of the active node has room for it, preferring below (or right) so that
-// a diagram read in order has its card in a consistent place.
+// Where the detail card sits. A flow that reads across gets it docked along the
+// bottom, always: the diagram is centred in the view, the attachments take the
+// space above it, and a card that moved between top and bottom as the walk
+// progressed would make the reader hunt for it every step. Fixed places are
+// easier to read than clever ones.
 export function walkPanelPlacement({ direction, node, viewport }) {
   const horizontal = direction === 'LR' || direction === 'RL' || direction === undefined;
 
-  if (horizontal) {
-    const band = viewport.height * WALK_PANEL.band;
-    const above = node.top - viewport.top;
-    const below = viewport.bottom - node.bottom;
-    if (below >= band) return { edge: 'bottom', axis: 'horizontal' };
-    if (above >= band) return { edge: 'top', axis: 'horizontal' };
-    // Neither side fits the full band, so take the roomier one and let the card
-    // shrink into it rather than landing on top of the node.
-    return { edge: below >= above ? 'bottom' : 'top', axis: 'horizontal' };
-  }
+  if (horizontal) return { edge: 'bottom', axis: 'horizontal' };
 
   const band = Math.min(viewport.width * WALK_PANEL.sideBand, WALK_PANEL.maxSide);
   const left = node.left - viewport.left;
@@ -414,12 +415,13 @@ export function attachRuntime(root, config = {}) {
     panel.dataset.axis = axis;
 
     if (axis === 'horizontal') {
-      const room = edge === 'bottom' ? viewport.bottom - node.bottom : node.top - viewport.top;
-      const height = Math.max(96, Math.min(viewport.height * WALK_PANEL.band, room - m * 2));
-      panel.style.left = `${viewport.left + m}px`;
-      panel.style.width = `${Math.max(0, viewport.width - m * 2)}px`;
+      // Docked flush to the bottom of the view, full width: it reads as part of
+      // the frame rather than as something floating over the diagram.
+      const height = Math.max(96, viewport.height * WALK_PANEL.band);
+      panel.style.left = `${viewport.left}px`;
+      panel.style.width = `${Math.max(0, viewport.width)}px`;
       panel.style.maxHeight = `${height}px`;
-      panel.style.top = edge === 'bottom' ? `${viewport.bottom - m - height}px` : `${viewport.top + m}px`;
+      panel.style.top = `${viewport.bottom - height}px`;
       return;
     }
 
@@ -804,6 +806,20 @@ export function attachRuntime(root, config = {}) {
     hideWalkPanel,
     showBand,
     hideBand,
+    // Re-place the chrome after the view has changed shape — entering full
+    // screen, a window resize. Both are positioned from measurements, so they
+    // are stale the moment the thing they measured moves.
+    reposition() {
+      const focused = root.dataset.anim === 'walkthrough'
+        ? animator.getState().activeId
+        : (selectedId ?? panelId);
+      if (!focused) return;
+      showBand(focused);
+      if (panel.dataset.open === 'true') {
+        const el = elFor(focused);
+        if (el) placeWalkPanel(el);
+      }
+    },
     // The card is a preference, not a mode: it belongs to whichever animation
     // is running, and to neither when it is off.
     setDetailPanel(on) {

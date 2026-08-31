@@ -600,7 +600,11 @@ export function createCanvas(container, model, opts = {}) {
   container.addEventListener('pointercancel', onPointerUp);
   container.addEventListener('wheel', onWheel, { passive: false });
   container.addEventListener('scroll', onScroll, { passive: true });
-  const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null;
+  const onResized = () => {
+    onResize();
+    opts.onResized?.();
+  };
+  const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(onResized) : null;
   if (resizeObserver) resizeObserver.observe(container);
   else if (opts.autoFit !== false) fitDefault();
 
